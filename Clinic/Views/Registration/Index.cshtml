@@ -1,0 +1,336 @@
+﻿@model Clinic.Models.RegisterDto
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+    <title>Clinic Registration - Healthcare Management System</title>
+    <meta name="description" content="Clinic Management System Registration" />
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #087830 0%, #0a5d29 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .registration-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .registration-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .clinic-header {
+            background: linear-gradient(135deg, #087830 0%, #0a5d29 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .clinic-logo {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .clinic-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .clinic-subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .registration-form {
+            padding: 2rem;
+        }
+
+        .form-floating {
+            margin-bottom: 1rem;
+        }
+
+        .form-control, .form-select {
+            border: 2px solid #e8f5e8;
+            border-radius: 10px;
+            padding: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+            .form-control:focus, .form-select:focus {
+                border-color: #087830;
+                box-shadow: 0 0 0 0.2rem rgba(8, 120, 48, 0.25);
+            }
+
+        .btn-clinic {
+            background: linear-gradient(135deg, #087830 0%, #0a5d29 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem;
+            color: white;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+            .btn-clinic:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(8, 120, 48, 0.4);
+                color: white;
+            }
+
+        .alert-danger {
+            border-radius: 10px;
+            border: none;
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .row {
+            margin-bottom: 1rem;
+        }
+
+        .text-danger {
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+            .login-link a {
+                color: #087830;
+                text-decoration: none;
+                font-weight: 500;
+            }
+
+                .login-link a:hover {
+                    text-decoration: underline;
+                }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="registration-container">
+            <div class="registration-card">
+                <!-- Clinic Header -->
+                <div class="clinic-header">
+                    <div class="clinic-logo">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h1 class="clinic-title">Join Clinic Management</h1>
+                    <p class="clinic-subtitle">Create your healthcare account</p>
+                </div>
+
+                <!-- Registration Form -->
+                <div class="registration-form">
+                    <h4 class="text-center mb-4 text-muted">Register Your Account 🏥</h4>
+                    <p class="text-center text-muted mb-4">Fill in your details to get started</p>
+
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @Html.ValidationSummary(false, "", new { @class = "mb-0" })
+                        </div>
+                    }
+
+                    <form asp-action="Index" asp-controller="Registration" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <!-- School ID -->
+                        <div class="form-floating mb-3">
+                            <input asp-for="SchoolID"
+                                   type="text"
+                                   class="form-control"
+                                   id="schoolid"
+                                   placeholder="School ID (Optional)" />
+                            <label for="schoolid">
+                                <i class="fas fa-id-card me-2"></i>School ID (Optional)
+                            </label>
+                            <span asp-validation-for="SchoolID" class="text-danger"></span>
+                        </div>
+
+                        <!-- Name Fields -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input asp-for="FirstName"
+                                           type="text"
+                                           class="form-control"
+                                           id="firstname"
+                                           placeholder="First Name"
+                                           required />
+                                    <label for="firstname">
+                                        <i class="fas fa-user me-2"></i>First Name *
+                                    </label>
+                                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input asp-for="MiddleName"
+                                           type="text"
+                                           class="form-control"
+                                           id="middlename"
+                                           placeholder="Middle Name" />
+                                    <label for="middlename">
+                                        <i class="fas fa-user me-2"></i>Middle Name
+                                    </label>
+                                    <span asp-validation-for="MiddleName" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="LastName"
+                                   type="text"
+                                   class="form-control"
+                                   id="lastname"
+                                   placeholder="Last Name"
+                                   required />
+                            <label for="lastname">
+                                <i class="fas fa-user me-2"></i>Last Name *
+                            </label>
+                            <span asp-validation-for="LastName" class="text-danger"></span>
+                        </div>
+
+                        <!-- Email and Username -->
+                        <div class="form-floating mb-3">
+                            <input asp-for="Email"
+                                   type="email"
+                                   class="form-control"
+                                   id="email"
+                                   placeholder="Email Address"
+                                   required />
+                            <label for="email">
+                                <i class="fas fa-envelope me-2"></i>Email Address *
+                            </label>
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input asp-for="Username"
+                                   type="text"
+                                   class="form-control"
+                                   id="username"
+                                   placeholder="Username"
+                                   required />
+                            <label for="username">
+                                <i class="fas fa-user-circle me-2"></i>Username *
+                            </label>
+                            <span asp-validation-for="Username" class="text-danger"></span>
+                        </div>
+
+                        <!-- Role and Program -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <select asp-for="Role" class="form-select" id="role" required>
+                                        <option value="">Select Role</option>
+                                        <option value="1">Student</option>
+                                        <option value="2">Doctor</option>
+                                        <option value="3">Campus Clinic Staff</option>
+                                    </select>
+                                    <label for="role">
+                                        <i class="fas fa-user-tag me-2"></i>Role *
+                                    </label>
+                                    <span asp-validation-for="Role" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input asp-for="Program"
+                                           type="text"
+                                           class="form-control"
+                                           id="program"
+                                           placeholder="Program/Department" />
+                                    <label for="program">
+                                        <i class="fas fa-graduation-cap me-2"></i>Program/Department
+                                    </label>
+                                    <span asp-validation-for="Program" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password Fields -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input asp-for="Password"
+                                           type="password"
+                                           class="form-control"
+                                           id="password"
+                                           placeholder="Password"
+                                           required />
+                                    <label for="password">
+                                        <i class="fas fa-lock me-2"></i>Password *
+                                    </label>
+                                    <span asp-validation-for="Password" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input asp-for="ConfirmPassword"
+                                           type="password"
+                                           class="form-control"
+                                           id="confirmpassword"
+                                           placeholder="Confirm Password"
+                                           required />
+                                    <label for="confirmpassword">
+                                        <i class="fas fa-lock me-2"></i>Confirm Password *
+                                    </label>
+                                    <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-clinic">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </button>
+                    </form>
+
+                    <div class="login-link">
+                        <p class="text-muted">
+                            Already have an account?
+                            <a asp-controller="Login" asp-action="Index">Sign in here</a>
+                        </p>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            © 2025 Clinic Management System. All rights reserved.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

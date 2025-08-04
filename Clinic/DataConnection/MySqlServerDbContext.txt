@@ -1,0 +1,11 @@
+﻿using Microsoft.EntityFrameworkCore;
+//using MySqlConnector;
+using Clinic.Models;
+
+namespace Clinic.DataConnection
+{
+    public class MySqlServerDbContext:DbContext
+    {
+        public DbSet<User> Users { get; set; }
+    }
+}
