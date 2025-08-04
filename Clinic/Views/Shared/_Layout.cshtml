@@ -37,25 +37,25 @@
           rel="stylesheet" />
 
     <!-- Icons. Uncomment required icon fonts -->
-    <link rel="stylesheet" href="../assets/vendor/fonts/boxicons.css" />
+    <link rel="stylesheet" href="~/assets/vendor/fonts/boxicons.css" asp-append-version="true" />
 
     <!-- Core CSS -->
-    <link rel="stylesheet" href="../assets/vendor/css/core.css" class="template-customizer-core-css" />
-    <link rel="stylesheet" href="../assets/vendor/css/theme-default.css" class="template-customizer-theme-css" />
-    <link rel="stylesheet" href="../assets/css/demo.css" />
+    <link rel="stylesheet" href="~/assets/vendor/css/core.css" class="template-customizer-core-css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/assets/vendor/css/theme-default.css" class="template-customizer-theme-css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/assets/css/demo.css" asp-append-version="true" />
 
     <!-- Vendors CSS -->
-    <link rel="stylesheet" href="../assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
+    <link rel="stylesheet" href="~/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" asp-append-version="true" />
 
-    <link rel="stylesheet" href="../assets/vendor/libs/apex-charts/apex-charts.css" />
+    <link rel="stylesheet" href="~/assets/vendor/libs/apex-charts/apex-charts.css" asp-append-version="true" />
 
     <!-- Page CSS -->
     <!-- Helpers -->
-    <script src="../assets/vendor/js/helpers.js"></script>
+    <script src="~/assets/vendor/js/helpers.js" asp-append-version="true"></script>
 
     <!--! Template customizer & Theme config files MUST be included after core stylesheets and helpers.js in the <head> section -->
     <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
-    <script src="../assets/js/config.js"></script>
+    <script src="~/assets/js/config.js" asp-append-version="true"></script>
 </head>
 
 <body>
@@ -142,7 +142,7 @@
                         </a>
                         <ul class="menu-sub">
                             <li class="menu-item">
-                                <a href="pages-account-settings-account.html" class="menu-link">
+                                <a asp-controller="Student" asp-action="Index" class="menu-link">
                                     <i class="menu-icon tf-icons bx bx-user"></i>
                                     <div data-i18n="Account">Manage Students</div>
                                 </a>
@@ -156,7 +156,7 @@
                         </ul>
                     </li>
 
-             
+                          
                     </li>
                
                     <!-- Components -->
@@ -314,23 +314,25 @@
 
     <!-- Core JS -->
     <!-- build:js assets/vendor/js/core.js -->
-    <script src="../assets/vendor/libs/jquery/jquery.js"></script>
-    <script src="../assets/vendor/libs/popper/popper.js"></script>
-    <script src="../assets/vendor/js/bootstrap.js"></script>
-    <script src="../assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js"></script>
+    <script src="~/assets/vendor/libs/jquery/jquery.js" asp-append-version="true"></script>
+    <script src="~/assets/vendor/libs/popper/popper.js" asp-append-version="true"></script>
+    <script src="~/assets/vendor/js/bootstrap.js" asp-append-version="true"></script>
+    <script src="~/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js" asp-append-version="true"></script>
 
-    <script src="../assets/vendor/js/menu.js"></script>
+    <script src="~/assets/vendor/js/menu.js" asp-append-version="true"></script>
     <!-- endbuild -->
     <!-- Vendors JS -->
-    <script src="../assets/vendor/libs/apex-charts/apexcharts.js"></script>
+    <script src="~/assets/vendor/libs/apex-charts/apexcharts.js" asp-append-version="true"></script>
 
     <!-- Main JS -->
-    <script src="../assets/js/main.js"></script>
+    <script src="~/assets/js/main.js" asp-append-version="true"></script>
 
     <!-- Page JS -->
-    <script src="../assets/js/dashboards-analytics.js"></script>
+    <script src="../assets/js/dashboards-analytics.js" asp-append-version="true"></script>
 
     <!-- Place this tag in your head or just before your close body tag. -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    @RenderSection("Scripts", required: false)
 </body>
 </html>
