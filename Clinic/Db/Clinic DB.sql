@@ -42,3 +42,13 @@ CREATE TABLE [Clinic].[Appointment] (
     CONSTRAINT [FK_Appointment_User] FOREIGN KEY ([UserId]) REFERENCES [Clinic].[User]([Id]),
     CONSTRAINT [FK_Appointment_Branches] FOREIGN KEY ([BranchId]) REFERENCES [Clinic].[Branches]([Id])
 );
+
+CREATE TABLE [Clinic].[TimeSlot] (
+    [Id] INT IDENTITY(1,1) PRIMARY KEY,
+    [DoctorId] INT NOT NULL,
+    [StartTime] DATETIME2 NOT NULL,
+    [EndTime] DATETIME2 NOT NULL,
+    [AppointmentId] INT NULL,
+    CONSTRAINT [FK_TimeSlot_Doctor] FOREIGN KEY ([DoctorId]) REFERENCES [Clinic].[User]([Id]),
+    CONSTRAINT [FK_TimeSlot_Appointment] FOREIGN KEY ([AppointmentId]) REFERENCES [Clinic].[Appointment]([Id])
+);
