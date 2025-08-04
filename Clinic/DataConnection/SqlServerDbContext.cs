@@ -12,7 +12,7 @@ namespace Clinic.DataConnection
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Fluent API configurations (if any)
+            modelBuilder.Entity<User>().ToTable("User", "Clinic");
             base.OnModelCreating(modelBuilder);
         }
     }
