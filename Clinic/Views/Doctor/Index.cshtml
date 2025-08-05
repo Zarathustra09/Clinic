@@ -17,7 +17,7 @@
             </a>
         </div>
         <div class="table-responsive text-nowrap">
-            <table class="table table-hover">
+            <table class="table table-hover" id="doctorTable">
                 <thead>
                     <tr>
                         <th>Employee ID</th>
@@ -89,3 +89,9 @@
             border-color: #0a5d29;
         }
 </style>
+
+<script>
+    $(document).ready( function () {
+        $('#doctorTable').DataTable();
+    } );
+</script>
