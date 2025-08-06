@@ -11,7 +11,7 @@ namespace Clinic.Models
         public int Id { get; set; }
 
         [Required]
-        public int DoctorId { get; set; } // References User.Id (Role = 3)
+        public int DoctorId { get; set; } // References User.Id (Role = 1)
 
         [ForeignKey(nameof(DoctorId))]
         public User Doctor { get; set; }

@@ -8,6 +8,7 @@ namespace Clinic.DataConnection
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Branches> Branches { get; set; }
+        public DbSet<TimeSlot> TimeSlots { get; set; }
 
         public SqlServerDbContext(DbContextOptions<SqlServerDbContext> options) : base(options) { }
 
@@ -16,6 +17,7 @@ namespace Clinic.DataConnection
             modelBuilder.Entity<User>().ToTable("User", "Clinic");
             modelBuilder.Entity<Branches>().ToTable("Branches", "Clinic");
             modelBuilder.Entity<Appointment>().ToTable("Appointment", "Clinic");
+            modelBuilder.Entity<TimeSlot>().ToTable("TimeSlot", "Clinic");
             base.OnModelCreating(modelBuilder);
         }
     }

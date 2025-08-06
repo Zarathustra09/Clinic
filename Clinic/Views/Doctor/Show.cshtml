@@ -10,8 +10,9 @@
     </h4>
 
     <div class="row justify-content-center">
-        <div class="col-lg-7 col-md-9">
-            <div class="card shadow-sm border-0">
+        <div class="col-lg-10 col-md-12">
+            <!-- Doctor Information Card -->
+            <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white border-bottom-0">
                     <h5 class="mb-0">
                         <i class="bx bx-user-check me-2"></i>Doctor Information
@@ -75,9 +76,353 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Time Slots Management Card -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bx bx-time me-2"></i>Time Slots Management
+                    </h5>
+                    <button type="button" class="btn btn-primary" onclick="showCreateTimeSlotModal()">
+                        <i class="bx bx-plus me-1"></i>Add Time Slot
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="timeSlotsTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Status</th>
+                                    <th>Appointment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="timeSlotsTableBody">
+                                <tr><td colspan="6" class="text-center text-muted">Loading time slots...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Create/Edit Time Slot Modal -->
+<div class="modal fade" id="timeSlotModal" tabindex="-1" aria-labelledby="timeSlotModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="timeSlotModalLabel">Add Time Slot</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="timeSlotForm">
+                <div class="modal-body">
+                    <input type="hidden" id="timeSlotId" value="0" />
+                    <input type="hidden" id="doctorId" value="@Model.Id" />
+
+                    <div class="mb-3">
+                        <label for="timeSlotDate" class="form-label">Date *</label>
+                        <input type="date" class="form-control" id="timeSlotDate" required />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="startTime" class="form-label">Start Time *</label>
+                                <input type="time" class="form-control" id="startTime" required />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="endTime" class="form-label">End Time *</label>
+                                <input type="time" class="form-control" id="endTime" required />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveTimeSlotBtn">Save Time Slot</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    let timeSlotModal;
+    const doctorId = @Model.Id;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page loaded, Doctor ID:', doctorId);
+        timeSlotModal = new bootstrap.Modal(document.getElementById('timeSlotModal'));
+        loadTimeSlots();
+
+        // Form submission handler
+        document.getElementById('timeSlotForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveTimeSlot();
+        });
+    });
+
+    function loadTimeSlots() {
+        const apiUrl = `/api/timeslots/doctor/${doctorId}`;
+        console.log('Loading time slots from:', apiUrl);
+
+        fetch(apiUrl)
+            .then(response => {
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Received data:', data);
+                console.log('Data length:', data.length);
+
+                const tbody = document.getElementById('timeSlotsTableBody');
+                tbody.innerHTML = '';
+
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No time slots available</td></tr>';
+                    console.log('No time slots found');
+                    return;
+                }
+
+                data.forEach((timeSlot, index) => {
+                    console.log(`Processing time slot ${index}:`, timeSlot);
+                    const row = createTimeSlotRow(timeSlot);
+                    tbody.appendChild(row);
+                });
+
+                console.log(`Successfully loaded ${data.length} time slots`);
+            })
+            .catch(error => {
+                console.error('Error loading time slots:', error);
+                const tbody = document.getElementById('timeSlotsTableBody');
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: `Failed to load time slots: ${error.message}`
+                });
+            });
+    }
+
+    function createTimeSlotRow(timeSlot) {
+        console.log('Creating row for time slot:', timeSlot);
+
+        const row = document.createElement('tr');
+        const startTime = new Date(timeSlot.startTime);
+        const endTime = new Date(timeSlot.endTime);
+
+        // Check if dates are valid
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+            console.error('Invalid date in time slot:', timeSlot);
+            row.innerHTML = '<td colspan="6" class="text-center text-danger">Invalid date format</td>';
+            return row;
+        }
+
+        row.innerHTML = `
+            <td>${startTime.toLocaleDateString()}</td>
+            <td>${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+            <td>${endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+            <td>
+                <span class="badge ${timeSlot.isAvailable ? 'bg-success' : 'bg-warning'}">
+                    ${timeSlot.isAvailable ? 'Available' : 'Booked'}
+                </span>
+            </td>
+            <td>${timeSlot.appointmentReason || '-'}</td>
+            <td>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editTimeSlot(${timeSlot.id})" ${!timeSlot.isAvailable ? 'disabled' : ''}>
+                        <i class="bx bx-edit-alt"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteTimeSlot(${timeSlot.id})" ${!timeSlot.isAvailable ? 'disabled' : ''}>
+                        <i class="bx bx-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+
+        return row;
+    }
+
+    function showCreateTimeSlotModal() {
+        document.getElementById('timeSlotModalLabel').textContent = 'Add Time Slot';
+        document.getElementById('timeSlotForm').reset();
+        document.getElementById('timeSlotId').value = '0';
+        document.getElementById('saveTimeSlotBtn').textContent = 'Save Time Slot';
+
+        // Set minimum date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('timeSlotDate').min = today;
+
+        timeSlotModal.show();
+    }
+
+    function editTimeSlot(id) {
+        fetch(`/api/timeslots/${id}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(timeSlot => {
+                document.getElementById('timeSlotModalLabel').textContent = 'Edit Time Slot';
+                document.getElementById('timeSlotId').value = timeSlot.id;
+                document.getElementById('saveTimeSlotBtn').textContent = 'Update Time Slot';
+
+                const startTime = new Date(timeSlot.startTime);
+                const endTime = new Date(timeSlot.endTime);
+
+                document.getElementById('timeSlotDate').value = startTime.toISOString().split('T')[0];
+                document.getElementById('startTime').value = startTime.toTimeString().slice(0, 5);
+                document.getElementById('endTime').value = endTime.toTimeString().slice(0, 5);
+
+                timeSlotModal.show();
+            })
+            .catch(error => {
+                console.error('Error loading time slot:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to load time slot details'
+                });
+            });
+    }
+
+    function saveTimeSlot() {
+        // Validate form inputs
+        const date = document.getElementById('timeSlotDate').value;
+        const startTime = document.getElementById('startTime').value;
+        const endTime = document.getElementById('endTime').value;
+
+        if (!date || !startTime || !endTime) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please fill in all required fields'
+            });
+            return;
+        }
+
+        // Validate start time is before end time
+        if (startTime >= endTime) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Start time must be before end time'
+            });
+            return;
+        }
+
+        const formData = {
+            id: parseInt(document.getElementById('timeSlotId').value),
+            doctorId: doctorId,
+            startTime: `${date}T${startTime}:00`,
+            endTime: `${date}T${endTime}:00`
+        };
+
+        console.log('Saving time slot:', formData);
+
+        const isEdit = formData.id > 0;
+        const url = isEdit ? `/api/timeslots/${formData.id}` : '/api/timeslots';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => {
+            console.log('Save response:', response);
+            if (response.ok) {
+                timeSlotModal.hide();
+                // Reload time slots after successful save
+                setTimeout(() => {
+                    loadTimeSlots();
+                }, 500);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: isEdit ? 'Time slot updated successfully' : 'Time slot created successfully',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                return response.text().then(text => {
+                    throw new Error(text || 'Failed to save time slot');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error saving time slot:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'Failed to save time slot'
+            });
+        });
+    }
+
+    function deleteTimeSlot(id) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/api/timeslots/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        loadTimeSlots();
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Deleted!',
+                            text: 'Time slot has been deleted.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        return response.text().then(text => {
+                            throw new Error(text || 'Failed to delete time slot');
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting time slot:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: error.message || 'Failed to delete time slot'
+                    });
+                });
+            }
+        });
+    }
+</script>
 
 <style>
     .card {
@@ -110,4 +455,25 @@
             background-color: #0a5d29;
             border-color: #0a5d29;
         }
+
+    .table th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.5rem;
+    }
+
+    .btn-group .btn {
+        border-radius: 0.25rem;
+        margin: 0 0.125rem;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 </style>

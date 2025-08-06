@@ -38,7 +38,7 @@ namespace Clinic.Models
         public string PasswordHash { get; set; }
 
         [Required]
-        public int Role { get; set; } // Values: 1 (Student), 2 (Doctor), 3 (Campus Clinic)
+        public int Role { get; set; } // Values: 0 (Student), 1 (Doctor), 2 (Campus Clinic)
 
         [StringLength(255)]
         public string Program { get; set; }
