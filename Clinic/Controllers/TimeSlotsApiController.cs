@@ -150,37 +150,69 @@ namespace Clinic.Controllers
             }
         }
 
-        // GET: api/timeslots/{id}
+        // GET: api/timeslots/{id} - FIXED VERSION with Raw SQL
         [HttpGet("{id}")]
         public async Task<ActionResult<TimeSlotDto>> GetTimeSlot(int id)
         {
             try
             {
-                var timeSlot = await _context.TimeSlots
-                    .Include(ts => ts.Doctor)
-                    .Include(ts => ts.Appointment)
-                    .FirstOrDefaultAsync(ts => ts.Id == id);
+                Console.WriteLine($"Getting time slot with ID: {id}");
 
-                if (timeSlot == null)
+                var connectionString = _context.Database.GetConnectionString();
+                TimeSlotDto timeSlotDto = null;
+
+                using (var connection = new SqlConnection(connectionString))
                 {
+                    await connection.OpenAsync();
+
+                    var sql = @"
+                        SELECT ts.Id, ts.DoctorId, ts.StartTime, ts.EndTime, ts.AppointmentId,
+                               u.FirstName, u.LastName, a.Reason
+                        FROM [Clinic].[TimeSlot] ts
+                        INNER JOIN [Clinic].[User] u ON ts.DoctorId = u.Id
+                        LEFT JOIN [Clinic].[Appointment] a ON ts.AppointmentId = a.Id
+                        WHERE ts.Id = @Id 
+                        AND ts.Id IS NOT NULL 
+                        AND ts.DoctorId IS NOT NULL 
+                        AND ts.StartTime IS NOT NULL 
+                        AND ts.EndTime IS NOT NULL";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@Id", id);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                timeSlotDto = new TimeSlotDto
+                                {
+                                    Id = reader.GetInt32("Id"),
+                                    DoctorId = reader.GetInt32("DoctorId"),
+                                    StartTime = reader.GetDateTime("StartTime"),
+                                    EndTime = reader.GetDateTime("EndTime"),
+                                    AppointmentId = reader.IsDBNull("AppointmentId") ? null : reader.GetInt32("AppointmentId"),
+                                    DoctorName = $"{reader.GetString("FirstName")} {reader.GetString("LastName")}",
+                                    AppointmentReason = reader.IsDBNull("Reason") ? null : reader.GetString("Reason")
+                                };
+                            }
+                        }
+                    }
+                }
+
+                if (timeSlotDto == null)
+                {
+                    Console.WriteLine($"Time slot with ID {id} not found");
                     return NotFound();
                 }
 
-                var timeSlotDto = new TimeSlotDto
-                {
-                    Id = timeSlot.Id,
-                    DoctorId = timeSlot.DoctorId,
-                    StartTime = timeSlot.StartTime,
-                    EndTime = timeSlot.EndTime,
-                    AppointmentId = timeSlot.AppointmentId,
-                    DoctorName = $"{timeSlot.Doctor.FirstName} {timeSlot.Doctor.LastName}",
-                    AppointmentReason = timeSlot.Appointment?.Reason
-                };
-
+                Console.WriteLine($"Found time slot: {timeSlotDto.Id} - {timeSlotDto.StartTime} to {timeSlotDto.EndTime}");
                 return Ok(timeSlotDto);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error getting time slot: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
@@ -224,13 +256,31 @@ namespace Clinic.Controllers
                     return BadRequest("Time slot must be scheduled for a future date and time.");
                 }
 
-                // Validate time slot doesn't overlap with existing ones for the same doctor
-                var overlappingSlot = await _context.TimeSlots
-                    .Where(ts => ts.DoctorId == timeSlotDto.DoctorId)
-                    .Where(ts => (timeSlotDto.StartTime < ts.EndTime && timeSlotDto.EndTime > ts.StartTime))
-                    .FirstOrDefaultAsync();
+                // Validate time slot doesn't overlap with existing ones for the same doctor using raw SQL
+                var connectionString = _context.Database.GetConnectionString();
+                bool hasOverlap = false;
 
-                if (overlappingSlot != null)
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+                    var overlapSql = @"
+                        SELECT COUNT(*) 
+                        FROM [Clinic].[TimeSlot] 
+                        WHERE DoctorId = @DoctorId 
+                        AND (@StartTime < EndTime AND @EndTime > StartTime)";
+
+                    using (var command = new SqlCommand(overlapSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@DoctorId", timeSlotDto.DoctorId);
+                        command.Parameters.AddWithValue("@StartTime", timeSlotDto.StartTime);
+                        command.Parameters.AddWithValue("@EndTime", timeSlotDto.EndTime);
+
+                        var count = (int)await command.ExecuteScalarAsync();
+                        hasOverlap = count > 0;
+                    }
+                }
+
+                if (hasOverlap)
                 {
                     return BadRequest("Time slot overlaps with an existing slot.");
                 }
@@ -269,96 +319,200 @@ namespace Clinic.Controllers
             }
         }
 
-        // PUT: api/timeslots/{id}
+        // PUT: api/timeslots/{id} - FIXED VERSION with Raw SQL
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTimeSlot(int id, [FromBody] TimeSlotDto timeSlotDto)
         {
-            // Remove validation for display-only properties
-            ModelState.Remove(nameof(TimeSlotDto.DoctorName));
-            ModelState.Remove(nameof(TimeSlotDto.AppointmentReason));
-            ModelState.Remove(nameof(TimeSlotDto.Date));
-            ModelState.Remove(nameof(TimeSlotDto.StartTimeOnly));
-            ModelState.Remove(nameof(TimeSlotDto.EndTimeOnly));
-
-            if (id != timeSlotDto.Id)
-            {
-                return BadRequest("ID mismatch.");
-            }
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var timeSlot = await _context.TimeSlots.FindAsync(id);
-            if (timeSlot == null)
-            {
-                return NotFound();
-            }
-
-            // Check if time slot is already booked with an appointment
-            if (timeSlot.AppointmentId.HasValue)
-            {
-                return BadRequest("Cannot modify a time slot that has been booked with an appointment.");
-            }
-
-            // Validate start time is before end time
-            if (timeSlotDto.StartTime >= timeSlotDto.EndTime)
-            {
-                return BadRequest("Start time must be before end time.");
-            }
-
-            // Validate time slot doesn't overlap with existing ones (excluding current slot)
-            var overlappingSlot = await _context.TimeSlots
-                .Where(ts => ts.DoctorId == timeSlotDto.DoctorId && ts.Id != id)
-                .Where(ts => (timeSlotDto.StartTime < ts.EndTime && timeSlotDto.EndTime > ts.StartTime))
-                .FirstOrDefaultAsync();
-
-            if (overlappingSlot != null)
-            {
-                return BadRequest("Time slot overlaps with an existing slot.");
-            }
-
-            // Update only the time properties, don't modify AppointmentId
-            timeSlot.StartTime = timeSlotDto.StartTime;
-            timeSlot.EndTime = timeSlotDto.EndTime;
-
             try
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!TimeSlotExists(id))
-                {
-                    return NotFound();
-                }
-                throw;
-            }
+                // Remove validation for display-only properties
+                ModelState.Remove(nameof(TimeSlotDto.DoctorName));
+                ModelState.Remove(nameof(TimeSlotDto.AppointmentReason));
+                ModelState.Remove(nameof(TimeSlotDto.Date));
+                ModelState.Remove(nameof(TimeSlotDto.StartTimeOnly));
+                ModelState.Remove(nameof(TimeSlotDto.EndTimeOnly));
 
-            return NoContent();
+                if (id != timeSlotDto.Id)
+                {
+                    return BadRequest("ID mismatch.");
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                Console.WriteLine($"Updating time slot with ID: {id}");
+
+                var connectionString = _context.Database.GetConnectionString();
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    // First check if the time slot exists and get its current state
+                    var checkSql = @"
+                        SELECT AppointmentId 
+                        FROM [Clinic].[TimeSlot] 
+                        WHERE Id = @Id";
+
+                    int? appointmentId = null;
+                    bool timeSlotExists = false;
+
+                    using (var command = new SqlCommand(checkSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@Id", id);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                timeSlotExists = true;
+                                appointmentId = reader.IsDBNull("AppointmentId") ? null : reader.GetInt32("AppointmentId");
+                            }
+                        }
+                    }
+
+                    if (!timeSlotExists)
+                    {
+                        return NotFound();
+                    }
+
+                    // Check if time slot is already booked with an appointment
+                    if (appointmentId.HasValue)
+                    {
+                        return BadRequest("Cannot modify a time slot that has been booked with an appointment.");
+                    }
+
+                    // Validate start time is before end time
+                    if (timeSlotDto.StartTime >= timeSlotDto.EndTime)
+                    {
+                        return BadRequest("Start time must be before end time.");
+                    }
+
+                    // Check for overlapping slots (excluding current slot)
+                    var overlapSql = @"
+                        SELECT COUNT(*) 
+                        FROM [Clinic].[TimeSlot] 
+                        WHERE DoctorId = @DoctorId 
+                        AND Id != @Id
+                        AND (@StartTime < EndTime AND @EndTime > StartTime)";
+
+                    using (var command = new SqlCommand(overlapSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@DoctorId", timeSlotDto.DoctorId);
+                        command.Parameters.AddWithValue("@Id", id);
+                        command.Parameters.AddWithValue("@StartTime", timeSlotDto.StartTime);
+                        command.Parameters.AddWithValue("@EndTime", timeSlotDto.EndTime);
+
+                        var count = (int)await command.ExecuteScalarAsync();
+                        if (count > 0)
+                        {
+                            return BadRequest("Time slot overlaps with an existing slot.");
+                        }
+                    }
+
+                    // Update the time slot
+                    var updateSql = @"
+                        UPDATE [Clinic].[TimeSlot] 
+                        SET StartTime = @StartTime, EndTime = @EndTime 
+                        WHERE Id = @Id";
+
+                    using (var command = new SqlCommand(updateSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@Id", id);
+                        command.Parameters.AddWithValue("@StartTime", timeSlotDto.StartTime);
+                        command.Parameters.AddWithValue("@EndTime", timeSlotDto.EndTime);
+
+                        var rowsAffected = await command.ExecuteNonQueryAsync();
+                        if (rowsAffected == 0)
+                        {
+                            return NotFound();
+                        }
+                    }
+                }
+
+                Console.WriteLine($"Successfully updated time slot {id}");
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating time slot: {ex.Message}");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
-        // DELETE: api/timeslots/{id}
+        // DELETE: api/timeslots/{id} - FIXED VERSION with Raw SQL
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTimeSlot(int id)
         {
-            var timeSlot = await _context.TimeSlots.FindAsync(id);
-            if (timeSlot == null)
+            try
             {
-                return NotFound();
-            }
+                Console.WriteLine($"Deleting time slot with ID: {id}");
 
-            // Check if time slot is booked with an appointment
-            if (timeSlot.AppointmentId.HasValue)
+                var connectionString = _context.Database.GetConnectionString();
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    await connection.OpenAsync();
+
+                    // First check if the time slot exists and get its current state
+                    var checkSql = @"
+                        SELECT AppointmentId 
+                        FROM [Clinic].[TimeSlot] 
+                        WHERE Id = @Id";
+
+                    int? appointmentId = null;
+                    bool timeSlotExists = false;
+
+                    using (var command = new SqlCommand(checkSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@Id", id);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                timeSlotExists = true;
+                                appointmentId = reader.IsDBNull("AppointmentId") ? null : reader.GetInt32("AppointmentId");
+                            }
+                        }
+                    }
+
+                    if (!timeSlotExists)
+                    {
+                        return NotFound();
+                    }
+
+                    // Check if time slot is booked with an appointment
+                    if (appointmentId.HasValue)
+                    {
+                        return BadRequest("Cannot delete a time slot that has been booked with an appointment.");
+                    }
+
+                    // Delete the time slot
+                    var deleteSql = @"DELETE FROM [Clinic].[TimeSlot] WHERE Id = @Id";
+
+                    using (var command = new SqlCommand(deleteSql, connection))
+                    {
+                        command.Parameters.AddWithValue("@Id", id);
+
+                        var rowsAffected = await command.ExecuteNonQueryAsync();
+                        if (rowsAffected == 0)
+                        {
+                            return NotFound();
+                        }
+                    }
+                }
+
+                Console.WriteLine($"Successfully deleted time slot {id}");
+                return NoContent();
+            }
+            catch (Exception ex)
             {
-                return BadRequest("Cannot delete a time slot that has been booked with an appointment.");
+                Console.WriteLine($"Error deleting time slot: {ex.Message}");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
             }
-
-            _context.TimeSlots.Remove(timeSlot);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
         }
 
         private bool TimeSlotExists(int id)
