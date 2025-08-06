@@ -26,7 +26,7 @@ namespace Clinic.Controllers
         public async Task<IActionResult> Index()
         {
             var students = await _context.Users
-                .Where(u => u.Role == 1)
+                .Where(u => u.Role == 0)
                 .Select(u => new StudentDto
                 {
                     Id = u.Id,
@@ -51,7 +51,7 @@ namespace Clinic.Controllers
         {
             if (id == null) return NotFound();
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 1);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 0);
             if (user == null) return NotFound();
 
             var studentDto = new StudentDto
@@ -111,7 +111,7 @@ namespace Clinic.Controllers
                     Email = studentDto.Email,
                     Username = studentDto.Username,
                     PasswordHash = HashPassword(studentDto.Password),
-                    Role = 1, // Student role
+                    Role = 0, // Student role
                     Program = studentDto.Program,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -130,7 +130,7 @@ namespace Clinic.Controllers
         {
             if (id == null) return NotFound();
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 1);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 0);
             if (user == null) return NotFound();
 
             var studentDto = new StudentDto
@@ -162,7 +162,7 @@ namespace Clinic.Controllers
                 try
                 {
                     var user = await _context.Users.FindAsync(id);
-                    if (user == null || user.Role != 1) return NotFound();
+                    if (user == null || user.Role != 0) return NotFound();
 
                     // Check if username already exists (excluding current user)
                     var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == studentDto.Username && u.Id != id);
@@ -196,7 +196,7 @@ namespace Clinic.Controllers
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!_context.Users.Any(u => u.Id == id && u.Role == 1))
+                    if (!_context.Users.Any(u => u.Id == id && u.Role == 0))
                         return NotFound();
                     throw;
                 }
@@ -211,7 +211,7 @@ namespace Clinic.Controllers
         {
             if (id == null) return NotFound();
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 1);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 0);
             if (user == null) return NotFound();
 
             var studentDto = new StudentDto
@@ -237,7 +237,7 @@ namespace Clinic.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 1);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 0);
             if (user != null)
             {
                 _context.Users.Remove(user);
