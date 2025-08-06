@@ -1,0 +1,125 @@
+﻿@model Clinic.Models.BranchDto
+
+@{
+    ViewData["Title"] = "Edit Branch";
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <h4 class="fw-bold py-3 mb-4">
+        <span class="text-muted fw-light">Branches /</span> Edit Branch
+    </h4>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Edit Branch Information</h5>
+                    <small class="text-muted">Update branch details</small>
+                </div>
+                <div class="card-body">
+                    <form asp-controller="Branch" asp-action="Edit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+
+                        <div class="row mb-3">
+                            <label asp-for="Name" class="col-sm-3 col-form-label">Branch Name *</label>
+                            <div class="col-sm-9">
+                                <input asp-for="Name" class="form-control" placeholder="Enter branch name" required />
+                                <div class="form-text">Unique name for the clinic branch</div>
+                                <span asp-validation-for="Name" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <label asp-for="Address" class="col-sm-3 col-form-label">Address</label>
+                            <div class="col-sm-9">
+                                <textarea asp-for="Address" class="form-control" rows="3" placeholder="Enter branch address (optional)"></textarea>
+                                <div class="form-text">Complete address of the branch location</div>
+                                <span asp-validation-for="Address" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row justify-content-end">
+                            <div class="col-sm-9">
+                                <button type="submit" class="btn btn-primary me-2">
+                                    <i class="bx bx-save me-1"></i>Save Changes
+                                </button>
+                                <a asp-action="Index" class="btn btn-outline-secondary">
+                                    <i class="bx bx-arrow-back me-1"></i>Back to List
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bx bx-info-circle me-2"></i>Information
+                    </h6>
+                    <div class="mb-3">
+                        <h6 class="text-primary">Branch ID</h6>
+                        <p class="text-muted small">
+                            <strong>@Model.Id</strong>
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="text-primary">Important Notes</h6>
+                        <ul class="text-muted small">
+                            <li>Branch name must be unique</li>
+                            <li>Existing appointments will remain linked to this branch</li>
+                            <li>Changes will take effect immediately</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bx bx-error me-2"></i>
+                        <strong>Warning:</strong> Changing the branch name may affect reports and records.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
+        border-radius: 0.375rem;
+    }
+
+    .btn-primary {
+        background-color: #087830;
+        border-color: #087830;
+    }
+
+        .btn-primary:hover {
+            background-color: #0a5d29;
+            border-color: #0a5d29;
+        }
+
+    .form-control:focus {
+        border-color: #087830;
+        box-shadow: 0 0 0 0.2rem rgba(8, 120, 48, 0.25);
+    }
+
+    .text-primary {
+        color: #087830 !important;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        border-color: #ffeaa7;
+        color: #856404;
+    }
+</style>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

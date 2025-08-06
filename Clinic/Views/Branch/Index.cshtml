@@ -1,0 +1,103 @@
+﻿@model IEnumerable<Clinic.Models.BranchDto>
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Branches Management";
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <h4 class="fw-bold py-3 mb-4">
+        <span class="text-muted fw-light">System Management /</span> Branches
+    </h4>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Clinic Branches</h5>
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bx bx-plus me-1"></i>Add New Branch
+            </a>
+        </div>
+        <div class="table-responsive text-nowrap">
+            <table class="table table-hover" id="branchTable">
+                <thead>
+                    <tr>
+                        <th>Branch Name</th>
+                        <th>Address</th>
+                        <th>Total Appointments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    @foreach (var branch in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@branch.Name</strong>
+                            </td>
+                            <td>@(branch.Address ?? "No address specified")</td>
+                            <td>
+                                <span class="badge bg-info">@branch.AppointmentCount</span>
+                            </td>
+                            <td>
+                                <div class="dropdown">
+                                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+                                        <i class="bx bx-dots-vertical-rounded"></i>
+                                    </button>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" asp-action="Show" asp-route-id="@branch.Id">
+                                            <i class="bx bx-show me-1"></i> View Details
+                                        </a>
+                                        <a class="dropdown-item" asp-action="Edit" asp-route-id="@branch.Id">
+                                            <i class="bx bx-edit-alt me-1"></i> Edit
+                                        </a>
+                                        <a class="dropdown-item text-danger" asp-action="Delete" asp-route-id="@branch.Id">
+                                            <i class="bx bx-trash me-1"></i> Delete
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                <i class="bx bx-info-circle me-2"></i>No branches found. <a asp-action="Create">Add the first branch</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
+        border-radius: 0.375rem;
+    }
+
+    .btn-primary {
+        background-color: #087830;
+        border-color: #087830;
+    }
+
+        .btn-primary:hover {
+            background-color: #0a5d29;
+            border-color: #0a5d29;
+        }
+
+    .table th {
+        background-color: #f8f9fa;
+        border-top: none;
+        font-weight: 600;
+        color: #566a7f;
+        padding: 1rem 1.25rem;
+    }
+
+    .table td {
+        padding: 1rem 1.25rem;
+        vertical-align: middle;
+    }
+</style>
