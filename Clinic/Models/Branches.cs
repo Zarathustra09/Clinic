@@ -15,7 +15,6 @@ namespace Clinic.Models
         [StringLength(500)]
         public string Address { get; set; }
 
-        // Navigation property for related appointments
         public ICollection<Appointment> Appointments { get; set; }
     }
 }
