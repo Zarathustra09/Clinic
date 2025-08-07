@@ -1,0 +1,494 @@
+﻿@{
+    ViewData["Title"] = "Appointments Calendar";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="bx bx-calendar me-2"></i>Appointments Calendar
+                    </h4>
+                    <button type="button" class="btn btn-primary" onclick="openCreateModal()">
+                        <i class="bx bx-plus me-1"></i>New Appointment
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="appointmentModal" tabindex="-1" aria-labelledby="appointmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="appointmentModalLabel">Create New Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="appointmentForm">
+                <div class="modal-body">
+                    <input type="hidden" id="appointmentId" value="0" />
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="userId" class="form-label">Patient *</label>
+                                <select class="form-select" id="userId" required>
+                                    <option value="">-- Select Patient --</option>
+                                    @if (ViewBag.Users != null)
+                                    {
+                                        @foreach (var user in ViewBag.Users as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>())
+                                        {
+                                            <option value="@user.Id">@user.FullName</option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="" disabled>No patients available</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="doctorId" class="form-label">Doctor *</label>
+                                <select class="form-select" id="doctorId" required onchange="loadAvailableTimeSlots()">
+                                    <option value="">-- Select Doctor --</option>
+                                    @if (ViewBag.Doctors != null)
+                                    {
+                                        @foreach (var doctor in ViewBag.Doctors as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>())
+                                        {
+                                            <option value="@doctor.Id">@doctor.FullName</option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="" disabled>No doctors available</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="timeSlotId" class="form-label">Available Time Slots *</label>
+                                <select class="form-select" id="timeSlotId" required>
+                                    <option value="">-- First select a doctor --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="branchId" class="form-label">Branch *</label>
+                                <select class="form-select" id="branchId" required>
+                                    <option value="">-- Select Branch --</option>
+                                    @if (ViewBag.Branches != null)
+                                    {
+                                        @foreach (var branch in ViewBag.Branches as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>())
+                                        {
+                                            <option value="@branch.Id">@branch.Name</option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="" disabled>No branches available</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Reason</label>
+                        <textarea class="form-control" id="reason" rows="3" placeholder="Enter appointment reason..."></textarea>
+                    </div>
+
+                    @if (ViewBag.Users == null || !(ViewBag.Users as IEnumerable<dynamic>)?.Any() == true)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bx bx-info-circle me-2"></i>
+                            <strong>Notice:</strong> No patients are available in the system. Please add patients before creating appointments.
+                        </div>
+                    }
+
+                    @if (ViewBag.Doctors == null || !(ViewBag.Doctors as IEnumerable<dynamic>)?.Any() == true)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bx bx-info-circle me-2"></i>
+                            <strong>Notice:</strong> No doctors are available in the system. Please add doctors before creating appointments.
+                        </div>
+                    }
+
+                    @if (ViewBag.Branches == null || !(ViewBag.Branches as IEnumerable<dynamic>)?.Any() == true)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bx bx-info-circle me-2"></i>
+                            <strong>Notice:</strong> No branches are available in the system. Please add branches before creating appointments.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
+                        <i class="bx bx-save me-1"></i>Save Appointment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- FullCalendar CSS and JS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        let calendar;
+        let appointmentModal;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCalendar();
+            appointmentModal = new bootstrap.Modal(document.getElementById('appointmentModal'));
+
+            // Form submission handler
+            document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                // Check if required data is available
+                if (!validateRequiredData()) {
+                    return;
+                }
+
+                saveAppointment();
+            });
+        });
+
+        function validateRequiredData() {
+            const userSelect = document.getElementById('userId');
+            const doctorSelect = document.getElementById('doctorId');
+            const branchSelect = document.getElementById('branchId');
+
+            if (userSelect.options.length <= 1) {
+                showError('No patients available in the system. Please add patients before creating appointments.');
+                return false;
+            }
+
+            if (doctorSelect.options.length <= 1) {
+                showError('No doctors available in the system. Please add doctors before creating appointments.');
+                return false;
+            }
+
+            if (branchSelect.options.length <= 1) {
+                showError('No branches available in the system. Please add branches before creating appointments.');
+                return false;
+            }
+
+            return true;
+        }
+
+        function loadAvailableTimeSlots() {
+            const doctorId = document.getElementById('doctorId').value;
+            const timeSlotSelect = document.getElementById('timeSlotId');
+
+            // Clear existing options
+            timeSlotSelect.innerHTML = '<option value="">Loading...</option>';
+
+            if (!doctorId) {
+                timeSlotSelect.innerHTML = '<option value="">-- First select a doctor --</option>';
+                return;
+            }
+
+            fetch(`/Appointment/GetAvailableTimeSlots?doctorId=${doctorId}`)
+                .then(response => response.json())
+                .then(data => {
+                    timeSlotSelect.innerHTML = '<option value="">-- Select Time Slot --</option>';
+
+                    if (data.error) {
+                        showError('Error loading time slots: ' + data.error);
+                        return;
+                    }
+
+                    if (data.length === 0) {
+                        timeSlotSelect.innerHTML = '<option value="">No available time slots for this doctor</option>';
+                        return;
+                    }
+
+                    data.forEach(slot => {
+                        const option = document.createElement('option');
+                        option.value = slot.id;
+                        option.textContent = slot.formattedTime;
+                        timeSlotSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    timeSlotSelect.innerHTML = '<option value="">Error loading time slots</option>';
+                });
+        }
+
+        function initializeCalendar() {
+            var calendarEl = document.getElementById('calendar');
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: '/Appointment/GetAppointments',
+                eventClick: function(info) {
+                    showAppointmentDetails(info.event);
+                },
+                select: function(info) {
+                    openCreateModal(info.start, info.end);
+                },
+                selectable: true,
+                selectMirror: true,
+                dayMaxEvents: true,
+                editable: false, // Disable drag/drop since we use time slots
+                height: 'auto',
+                businessHours: {
+                    daysOfWeek: [1, 2, 3, 4, 5], // Monday - Friday
+                    startTime: '08:00',
+                    endTime: '17:00'
+                },
+                noEventsContent: 'No appointments scheduled'
+            });
+
+            calendar.render();
+        }
+
+        function openCreateModal(start = null, end = null) {
+            // Check if required data is available before opening modal
+            if (!validateRequiredData()) {
+                return;
+            }
+
+            document.getElementById('appointmentModalLabel').textContent = 'Create New Appointment';
+            document.getElementById('appointmentId').value = '0';
+            document.getElementById('appointmentForm').reset();
+
+            // Reset time slot dropdown
+            document.getElementById('timeSlotId').innerHTML = '<option value="">-- First select a doctor --</option>';
+
+            appointmentModal.show();
+        }
+
+        function showAppointmentDetails(event) {
+            Swal.fire({
+                title: event.title,
+                html: `
+                    <div class="text-start">
+                        <p><strong>Time:</strong> ${event.start.toLocaleString()} - ${event.end.toLocaleString()}</p>
+                        <p><strong>Patient:</strong> ${event.extendedProps.userFullName}</p>
+                        <p><strong>Doctor:</strong> ${event.extendedProps.doctorName}</p>
+                        <p><strong>Branch:</strong> ${event.extendedProps.branchName}</p>
+                        <p><strong>Reason:</strong> ${event.extendedProps.reason || 'N/A'}</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="bx bx-edit"></i> Edit',
+                denyButtonText: '<i class="bx bx-trash"></i> Delete',
+                cancelButtonText: 'Close',
+                confirmButtonColor: '#007bff',
+                denyButtonColor: '#dc3545'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    editAppointment(event.id);
+                } else if (result.isDenied) {
+                    deleteAppointment(event.id, event.title);
+                }
+            });
+        }
+
+        function editAppointment(appointmentId) {
+            fetch(`/Appointment/GetAppointment/${appointmentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const appointment = data.data;
+
+                        document.getElementById('appointmentModalLabel').textContent = 'Edit Appointment';
+                        document.getElementById('appointmentId').value = appointment.id;
+                        document.getElementById('userId').value = appointment.userId;
+                        document.getElementById('doctorId').value = appointment.doctorId;
+                        document.getElementById('branchId').value = appointment.branchId;
+                        document.getElementById('reason').value = appointment.reason || '';
+
+                        // Load time slots for the selected doctor and then set the selected time slot
+                        loadAvailableTimeSlots().then(() => {
+                            // Add the current time slot as an option if it's not in the available list
+                            const timeSlotSelect = document.getElementById('timeSlotId');
+                            let optionExists = Array.from(timeSlotSelect.options).some(option => option.value == appointment.timeSlotId);
+
+                            if (!optionExists) {
+                                const option = document.createElement('option');
+                                option.value = appointment.timeSlotId;
+                                option.textContent = appointment.formattedTimeRange + ' (Current)';
+                                timeSlotSelect.appendChild(option);
+                            }
+
+                            timeSlotSelect.value = appointment.timeSlotId;
+                        });
+
+                        appointmentModal.show();
+                    } else {
+                        showError(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('Failed to load appointment for editing');
+                });
+        }
+
+        function saveAppointment() {
+            const appointmentId = parseInt(document.getElementById('appointmentId').value);
+            const isEdit = appointmentId > 0;
+
+            const appointmentData = {
+                id: appointmentId,
+                userId: parseInt(document.getElementById('userId').value),
+                doctorId: parseInt(document.getElementById('doctorId').value),
+                branchId: parseInt(document.getElementById('branchId').value),
+                timeSlotId: parseInt(document.getElementById('timeSlotId').value),
+                reason: document.getElementById('reason').value
+            };
+
+            const url = isEdit ? '/Appointment/Update' : '/Appointment/Create';
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(appointmentData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    appointmentModal.hide();
+                    showSuccess(data.message);
+                    calendar.refetchEvents();
+                } else {
+                    showFormErrors(data.errors);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('An error occurred while saving the appointment');
+            });
+        }
+
+        function deleteAppointment(appointmentId, title) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `Delete appointment: ${title}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/Appointment/Delete/${appointmentId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showSuccess(data.message);
+                            calendar.refetchEvents();
+                        } else {
+                            showError(data.errors?.join('<br>') || 'Failed to delete appointment');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showError('Failed to delete appointment');
+                    });
+                }
+            });
+        }
+
+        // Helper functions
+        function showSuccess(message) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: message,
+                timer: 3000,
+                showConfirmButton: false
+            });
+        }
+
+        function showError(message) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                html: message,
+                confirmButtonColor: '#dc3545'
+            });
+        }
+
+        function showFormErrors(errors) {
+            if (errors && errors.length > 0) {
+                showError(errors.join('<br>'));
+            }
+        }
+    </script>
+}
+
+@section Styles {
+    <style>
+        .fc-event {
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+            .fc-event:hover {
+                opacity: 0.8;
+            }
+
+        .fc-daygrid-event {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card {
+            box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
+            border-radius: 0.375rem;
+        }
+
+        .btn-primary {
+            background-color: #087830;
+            border-color: #087830;
+        }
+
+            .btn-primary:hover {
+                background-color: #0a5d29;
+                border-color: #0a5d29;
+            }
+
+        .alert {
+            border-radius: 0.375rem;
+        }
+    </style>
+}

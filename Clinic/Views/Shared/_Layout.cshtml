@@ -59,6 +59,47 @@
 
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- FullCalendar CSS and JS -->
+    <link href='https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/5.10.1/main.min.css' rel='stylesheet' />
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        .fc-event {
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+            .fc-event:hover {
+                opacity: 0.8;
+            }
+
+        .fc-daygrid-event {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card {
+            box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
+            border-radius: 0.375rem;
+        }
+
+        .btn-primary {
+            background-color: #087830;
+            border-color: #087830;
+        }
+
+            .btn-primary:hover {
+                background-color: #0a5d29;
+                border-color: #0a5d29;
+            }
+
+        .alert {
+            border-radius: 0.375rem;
+        }
+    </style>
 </head>
 
 <body>
@@ -339,6 +380,16 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <!-- ... existing head content ... -->
+
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     @RenderSection("Scripts", required: false)
+    @RenderSection("Styles", required: false)
+
+
+    <!-- FullCalendar JS -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
 </body>
 </html>

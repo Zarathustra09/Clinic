@@ -70,32 +70,64 @@
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
+                                    <th>Date & Time</th>
+                                    <th>Duration</th>
                                     <th>Patient</th>
                                     <th>Reason</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var appointment in branchEntity.Appointments.OrderByDescending(a => a.AppointmentDate).Take(10))
+                                @foreach (var appointment in branchEntity.Appointments.OrderByDescending(a => a.StartTime).Take(10))
                                 {
                                     <tr>
-                                        <td>@appointment.AppointmentDate.ToString("MMM dd, yyyy HH:mm")</td>
+                                        <td>
+                                            <div class="fw-medium">@appointment.StartTime.ToString("MMM dd, yyyy")</div>
+                                            <small class="text-muted">
+                                                @appointment.StartTime.ToString("h:mm tt") - @appointment.EndTime.ToString("h:mm tt")
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">
+                                                @appointment.Duration.Hours h @appointment.Duration.Minutes m
+                                            </span>
+                                        </td>
                                         <td>
                                             @if (appointment.User != null)
                                             {
-                                                <strong>@appointment.User.FirstName @appointment.User.LastName</strong>
+                                                <strong>@appointment.UserFullName</strong>
                                             }
                                             else
                                             {
                                                 <span class="text-muted">Unknown Patient</span>
                                             }
                                         </td>
-                                        <td>@(appointment.Reason ?? "No reason specified")</td>
                                         <td>
-                                            @if (appointment.AppointmentDate > DateTime.Now)
+                                            @if (!string.IsNullOrEmpty(appointment.Reason))
+                                            {
+                                                <span title="@appointment.Reason">
+                                                    @(appointment.Reason.Length > 30 ? appointment.Reason.Substring(0, 30) + "..." : appointment.Reason)
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">No reason specified</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (appointment.StartTime > DateTime.Now)
                                             {
                                                 <span class="badge bg-success">Scheduled</span>
+                                                @if (appointment.TimeSlotId > 0)
+                                                {
+                                                    <br>
+                                    
+                                                    <small class="text-muted">Via Time Slot</small>
+                                                }
+                                            }
+                                            else if (appointment.EndTime > DateTime.Now)
+                                            {
+                                                <span class="badge bg-warning">In Progress</span>
                                             }
                                             else
                                             {
@@ -127,18 +159,88 @@
                     {
                         <div class="d-flex justify-content-between mb-3">
                             <span>Upcoming:</span>
-                            <strong class="text-success">@branchEntity.Appointments.Count(a => a.AppointmentDate > DateTime.Now)</strong>
+                            <strong class="text-success">@branchEntity.Appointments.Count(a => a.StartTime > DateTime.Now)</strong>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>In Progress:</span>
+                            <strong class="text-warning">@branchEntity.Appointments.Count(a => a.StartTime <= DateTime.Now && a.EndTime > DateTime.Now)</strong>
                         </div>
 
                         <div class="d-flex justify-content-between mb-3">
                             <span>Completed:</span>
-                            <strong class="text-secondary">@branchEntity.Appointments.Count(a => a.AppointmentDate <= DateTime.Now)</strong>
+                            <strong class="text-secondary">@branchEntity.Appointments.Count(a => a.EndTime <= DateTime.Now)</strong>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>This Month:</span>
+                            <strong class="text-info">@branchEntity.Appointments.Count(a => a.StartTime.Month == DateTime.Now.Month && a.StartTime.Year == DateTime.Now.Year)</strong>
                         </div>
 
                         <div class="d-flex justify-content-between">
-                            <span>This Month:</span>
-                            <strong class="text-info">@branchEntity.Appointments.Count(a => a.AppointmentDate.Month == DateTime.Now.Month && a.AppointmentDate.Year == DateTime.Now.Year)</strong>
+                            <span>Via Time Slots:</span>
+                            <strong class="text-primary">@branchEntity.Appointments.Count(a => a.TimeSlotId > 0)</strong>
                         </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bx bx-time me-2"></i>Today's Schedule
+                    </h6>
+
+                    @if (branchEntity?.Appointments != null && branchEntity.Appointments.Any())
+                    {
+                        var todayAppointments = branchEntity.Appointments
+                        .Where(a => a.StartTime.Date == DateTime.Today)
+                        .OrderBy(a => a.StartTime)
+                        .ToList();
+
+                        @if (todayAppointments.Any())
+                        {
+                            <div class="timeline">
+                                @foreach (var appointment in todayAppointments.Take(5))
+                                {
+                                    <div class="timeline-item mb-3">
+                                        <div class="d-flex">
+                                            <div class="flex-shrink-0">
+                                                <span class="badge @(appointment.StartTime > DateTime.Now ? "bg-success" : (appointment.EndTime > DateTime.Now ? "bg-warning" : "bg-secondary"))">
+                                                    @appointment.StartTime.ToString("HH:mm")
+                                                </span>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <div class="fw-medium">@appointment.UserFullName</div>
+                                                <small class="text-muted">
+                                                    @appointment.StartTime.ToString("h:mm tt") - @appointment.EndTime.ToString("h:mm tt")
+                                                    @if (!string.IsNullOrEmpty(appointment.Reason))
+                                                    {
+                                                        <br>
+                                                        @appointment.Reason
+                                                    }
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            @if (todayAppointments.Count > 5)
+                            {
+                                <div class="text-center">
+                                    <small class="text-muted">+@(todayAppointments.Count - 5) more appointments today</small>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">No appointments scheduled for today</p>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No appointments available</p>
                     }
                 </div>
             </div>
@@ -158,6 +260,9 @@
                         </a>
                         <a asp-controller="Appointment" asp-action="Index" asp-route-branchId="@Model.Id" class="btn btn-outline-info">
                             <i class="bx bx-calendar me-2"></i>View Appointments
+                        </a>
+                        <a href="#" onclick="exportAppointments(@Model.Id)" class="btn btn-outline-success">
+                            <i class="bx bx-download me-2"></i>Export Data
                         </a>
                     </div>
                 </div>
@@ -197,4 +302,43 @@
         font-style: normal;
         line-height: 1.5;
     }
+
+    .timeline-item {
+        position: relative;
+    }
+
+        .timeline-item:not(:last-child):before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 30px;
+            height: calc(100% + 12px);
+            width: 1px;
+            background-color: #e9ecef;
+        }
+
+    .fw-medium {
+        font-weight: 500;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
 </style>
+
+<script>
+    function exportAppointments(branchId) {
+        // Placeholder for export functionality
+        Swal.fire({
+            icon: 'info',
+            title: 'Export Feature',
+            text: 'Export functionality will be implemented soon!',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
+</script>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+}
