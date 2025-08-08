@@ -17,7 +17,10 @@ builder.Services.AddDbContext<SqlServerDbContext>(options =>
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/Login/Index"; // Redirect to login page
+        options.LoginPath = "/Login";
+        options.LogoutPath = "/Login/Logout";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+        options.SlidingExpiration = true;
     });
 
 // Configure authorization policies

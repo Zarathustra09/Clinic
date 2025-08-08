@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,7 +38,24 @@ namespace Clinic.Controllers
 
                 if (user != null)
                 {
-                    // Authentication successful, redirect to home index page
+                    // Create claims for the authenticated user
+                    var claims = new List<Claim>
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                        new Claim(ClaimTypes.Name, user.Username),
+                        new Claim(ClaimTypes.Email, user.Email),
+                        new Claim(ClaimTypes.GivenName, user.FirstName),
+                        new Claim(ClaimTypes.Surname, user.LastName),
+                        new Claim(ClaimTypes.Role, GetRoleName(user.Role))
+                    };
+
+                    // Create claims identity
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+                    // Sign in the user
+                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, 
+                        new ClaimsPrincipal(claimsIdentity));
+
                     return RedirectToAction("Index", "Home");
                 }
                 else
@@ -46,7 +64,6 @@ namespace Clinic.Controllers
                 }
             }
 
-            // If login fails, return the login view with validation errors
             return View(model);
         }
 
@@ -64,6 +81,17 @@ namespace Clinic.Controllers
                 var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
                 return Convert.ToBase64String(hashedBytes);
             }
+        }
+
+        private string GetRoleName(int role)
+        {
+            return role switch
+            {
+                0 => "Student",
+                1 => "Doctor",
+                2 => "Campus Clinic",
+                _ => "Unknown"
+            };
         }
     }
 }

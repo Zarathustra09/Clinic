@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Clinic.Models;
 using Clinic.DataConnection;
+using System.Security.Claims;
 
 namespace Clinic.Controllers
 {
@@ -27,55 +28,81 @@ namespace Clinic.Controllers
             return View();
         }
 
-        // API: Get appointments for FullCalendar
-        [HttpGet("GetAppointments")]
-        public async Task<JsonResult> GetAppointments(DateTime? start = null, DateTime? end = null)
-        {
-            try
-            {
-                var query = _context.Appointments
-                    .Include(a => a.User)
-                    .Include(a => a.Doctor)
-                    .Include(a => a.Branch)
-                    .Include(a => a.TimeSlot)
-                    .AsQueryable();
-
-                if (start.HasValue && end.HasValue)
-                {
-                    query = query.Where(a => a.TimeSlot.StartTime >= start.Value && a.TimeSlot.EndTime <= end.Value);
-                }
-
-                var appointments = await query
-                    .Select(a => new
-                    {
-                        id = a.Id,
-                        title = $"{a.User.FirstName} {a.User.LastName}" + (string.IsNullOrEmpty(a.Reason) ? "" : $" - {a.Reason}"),
-                        start = a.TimeSlot.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                        end = a.TimeSlot.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                        backgroundColor = GetAppointmentColor(a.BranchId),
-                        borderColor = GetAppointmentColor(a.BranchId),
-                        extendedProps = new
-                        {
-                            userId = a.UserId,
-                            doctorId = a.DoctorId,
-                            branchId = a.BranchId,
-                            reason = a.Reason,
-                            userFullName = $"{a.User.FirstName} {a.User.LastName}",
-                            doctorName = $"{a.Doctor.FirstName} {a.Doctor.LastName}",
-                            branchName = a.Branch.Name,
-                            timeSlotId = a.TimeSlotId
-                        }
-                    })
-                    .ToListAsync();
-
-                return Json(appointments);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading appointments: {ex.Message}");
-                return Json(new { error = ex.Message });
-            }
-        }
+       [HttpGet("GetAppointments")]
+       public async Task<JsonResult> GetAppointments(DateTime? start = null, DateTime? end = null)
+       {
+           try
+           {
+               var query = _context.Appointments
+                   .Include(a => a.User)
+                   .Include(a => a.Doctor)
+                   .Include(a => a.Branch)
+                   .Include(a => a.TimeSlot)
+                   .AsQueryable();
+       
+               // Get current user information from claims
+               if (User.Identity.IsAuthenticated)
+               {
+                   var currentUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                   var currentUserRoleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+       
+                   if (int.TryParse(currentUserIdClaim, out int currentUserId))
+                   {
+                       // If user role is not "Campus Clinic" (role 2), filter appointments
+                       if (currentUserRoleClaim != "Campus Clinic")
+                       {
+                           if (currentUserRoleClaim == "Student") // Role 0
+                           {
+                               // Students see only their own appointments as patients
+                               query = query.Where(a => a.UserId == currentUserId);
+                           }
+                           else if (currentUserRoleClaim == "Doctor") // Role 1
+                           {
+                               // Doctors see only appointments where they are the assigned doctor
+                               query = query.Where(a => a.DoctorId == currentUserId);
+                           }
+                       }
+                       // Campus Clinic staff (role 2) see all appointments - no filtering needed
+                   }
+               }
+       
+               // Apply date filtering if provided
+               if (start.HasValue && end.HasValue)
+               {
+                   query = query.Where(a => a.TimeSlot.StartTime >= start.Value && a.TimeSlot.EndTime <= end.Value);
+               }
+       
+               var appointments = await query
+                   .Select(a => new
+                   {
+                       id = a.Id,
+                       title = $"{a.User.FirstName} {a.User.LastName}" + (string.IsNullOrEmpty(a.Reason) ? "" : $" - {a.Reason}"),
+                       start = a.TimeSlot.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                       end = a.TimeSlot.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                       backgroundColor = GetAppointmentColor(a.BranchId),
+                       borderColor = GetAppointmentColor(a.BranchId),
+                       extendedProps = new
+                       {
+                           userId = a.UserId,
+                           doctorId = a.DoctorId,
+                           branchId = a.BranchId,
+                           reason = a.Reason,
+                           userFullName = $"{a.User.FirstName} {a.User.LastName}",
+                           doctorName = $"{a.Doctor.FirstName} {a.Doctor.LastName}",
+                           branchName = a.Branch.Name,
+                           timeSlotId = a.TimeSlotId
+                       }
+                   })
+                   .ToListAsync();
+       
+               return Json(appointments);
+           }
+           catch (Exception ex)
+           {
+               Console.WriteLine($"Error loading appointments: {ex.Message}");
+               return Json(new { error = ex.Message });
+           }
+       }
 
         // API: Get appointment details
         [HttpGet("GetAppointment/{id}")]
