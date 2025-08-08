@@ -27,20 +27,24 @@ namespace Clinic.Models
         [Required(ErrorMessage = "Time slot selection is required")]
         public int TimeSlotId { get; set; }
 
-        // Display properties
+        // Display properties - NOT required for model binding, populated on server side
         public string UserFullName { get; set; }
         public string BranchName { get; set; }
         public string DoctorName { get; set; }
         public string FormattedTimeRange { get; set; }
 
-        // Time properties derived from TimeSlot
+        // Time properties derived from TimeSlot - NOT required for model binding
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
 
-        // For FullCalendar
-        public string Title => $"{UserFullName} - {Reason ?? "Appointment"}";
-        public string Start => StartTime.ToString("yyyy-MM-ddTHH:mm:ss");
-        public string End => EndTime.ToString("yyyy-MM-ddTHH:mm:ss");
+        // For FullCalendar - computed properties with null checks
+        public string Title => string.IsNullOrEmpty(UserFullName) ? "Appointment" :
+            $"{UserFullName}" + (string.IsNullOrEmpty(Reason) ? "" : $" - {Reason}");
+
+        public string Start => StartTime != DateTime.MinValue ? StartTime.ToString("yyyy-MM-ddTHH:mm:ss") : "";
+
+        public string End => EndTime != DateTime.MinValue ? EndTime.ToString("yyyy-MM-ddTHH:mm:ss") : "";
+
         public string Color { get; set; } = "#007bff";
     }
 }

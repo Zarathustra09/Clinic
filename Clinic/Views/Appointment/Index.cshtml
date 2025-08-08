@@ -355,18 +355,48 @@
                 });
         }
 
-        function saveAppointment() {
+               function saveAppointment() {
             const appointmentId = parseInt(document.getElementById('appointmentId').value);
             const isEdit = appointmentId > 0;
 
+            // Get form values
+            const userId = document.getElementById('userId').value;
+            const doctorId = document.getElementById('doctorId').value;
+            const timeSlotId = document.getElementById('timeSlotId').value;
+            const branchId = document.getElementById('branchId').value;
+            const reason = document.getElementById('reason').value;
+
+            // Validate required fields
+            if (!userId || userId === '') {
+                showError('Please select a patient.');
+                return;
+            }
+
+            if (!doctorId || doctorId === '') {
+                showError('Please select a doctor.');
+                return;
+            }
+
+            if (!timeSlotId || timeSlotId === '') {
+                showError('Please select a time slot.');
+                return;
+            }
+
+            if (!branchId || branchId === '') {
+                showError('Please select a branch.');
+                return;
+            }
+
             const appointmentData = {
                 id: appointmentId,
-                userId: parseInt(document.getElementById('userId').value),
-                doctorId: parseInt(document.getElementById('doctorId').value),
-                branchId: parseInt(document.getElementById('branchId').value),
-                timeSlotId: parseInt(document.getElementById('timeSlotId').value),
-                reason: document.getElementById('reason').value
+                userId: parseInt(userId),
+                doctorId: parseInt(doctorId),
+                branchId: parseInt(branchId),
+                timeSlotId: parseInt(timeSlotId),
+                reason: reason || ''
             };
+
+            console.log('Sending appointment data:', appointmentData); // Debug log
 
             const url = isEdit ? '/Appointment/Update' : '/Appointment/Create';
 
@@ -379,6 +409,7 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log('Server response:', data); // Debug log
                 if (data.success) {
                     appointmentModal.hide();
                     showSuccess(data.message);

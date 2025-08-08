@@ -121,43 +121,176 @@ namespace Clinic.Controllers
         }
 
         // API: Create appointment
+        // API: Create appointment
         [HttpPost("Create")]
         public async Task<JsonResult> Create([FromBody] AppointmentDto appointmentDto)
         {
             try
             {
+                // Debug log the received data
+                Console.WriteLine($"=== CREATE APPOINTMENT DEBUG ===");
+                Console.WriteLine($"Received appointmentDto:");
+                Console.WriteLine($"  UserId: {appointmentDto.UserId}");
+                Console.WriteLine($"  DoctorId: {appointmentDto.DoctorId}");
+                Console.WriteLine($"  BranchId: {appointmentDto.BranchId}");
+                Console.WriteLine($"  TimeSlotId: {appointmentDto.TimeSlotId}");
+                Console.WriteLine($"  Reason: '{appointmentDto.Reason}'");
+
+                // Check if appointmentDto is null
+                if (appointmentDto == null)
+                {
+                    Console.WriteLine("ERROR: appointmentDto is null");
+                    return Json(new { success = false, errors = new[] { "Invalid appointment data received." } });
+                }
+
+                // Remove validation errors for display properties that are populated server-side
+                var displayProperties = new[] { "BranchName", "DoctorName", "UserFullName", "FormattedTimeRange", "StartTime", "EndTime", "Title", "Start", "End" };
+                foreach (var prop in displayProperties)
+                {
+                    if (ModelState.ContainsKey(prop))
+                    {
+                        ModelState.Remove(prop);
+                    }
+                }
+
+                // Validate ModelState and provide detailed error information
                 if (!ModelState.IsValid)
                 {
-                    var errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage));
-                    return Json(new { success = false, errors = errors });
+                    Console.WriteLine("ModelState is INVALID:");
+                    var allErrors = new List<string>();
+
+                    foreach (var key in ModelState.Keys)
+                    {
+                        var state = ModelState[key];
+                        if (state.Errors.Count > 0)
+                        {
+                            Console.WriteLine($"  Field '{key}':");
+                            foreach (var error in state.Errors)
+                            {
+                                Console.WriteLine($"    - {error.ErrorMessage}");
+                                allErrors.Add($"{key}: {error.ErrorMessage}");
+                            }
+                        }
+                    }
+
+                    return Json(new { success = false, errors = allErrors });
+                }
+
+                Console.WriteLine("ModelState is VALID - proceeding with validations");
+
+                // Validate required fields manually (as backup)
+                var validationErrors = new List<string>();
+
+                if (appointmentDto.UserId <= 0)
+                {
+                    validationErrors.Add("Invalid patient selection.");
+                }
+
+                if (appointmentDto.DoctorId <= 0)
+                {
+                    validationErrors.Add("Invalid doctor selection.");
+                }
+
+                if (appointmentDto.BranchId <= 0)
+                {
+                    validationErrors.Add("Invalid branch selection.");
+                }
+
+                if (appointmentDto.TimeSlotId <= 0)
+                {
+                    validationErrors.Add("Invalid time slot selection.");
+                }
+
+                if (validationErrors.Any())
+                {
+                    Console.WriteLine($"Manual validation failed: {string.Join(", ", validationErrors)}");
+                    return Json(new { success = false, errors = validationErrors });
                 }
 
                 // Validate that the time slot exists and is available
+                Console.WriteLine($"Looking up TimeSlot with ID: {appointmentDto.TimeSlotId}");
+
                 var timeSlot = await _context.TimeSlots
                     .Include(ts => ts.Doctor)
                     .FirstOrDefaultAsync(ts => ts.Id == appointmentDto.TimeSlotId);
 
                 if (timeSlot == null)
                 {
+                    Console.WriteLine($"TimeSlot with ID {appointmentDto.TimeSlotId} NOT FOUND");
+
+                    // Debug: Show what time slots exist
+                    var allTimeSlots = await _context.TimeSlots
+                        .Select(ts => new { ts.Id, ts.DoctorId, ts.StartTime, ts.EndTime, ts.AppointmentId })
+                        .ToListAsync();
+
+                    Console.WriteLine($"Available time slots in database ({allTimeSlots.Count}):");
+                    foreach (var ts in allTimeSlots)
+                    {
+                        Console.WriteLine($"  ID: {ts.Id}, DoctorId: {ts.DoctorId}, Start: {ts.StartTime}, Available: {ts.AppointmentId == null}");
+                    }
+
                     return Json(new { success = false, errors = new[] { "Selected time slot does not exist." } });
                 }
 
+                Console.WriteLine($"TimeSlot found: ID={timeSlot.Id}, DoctorId={timeSlot.DoctorId}, Available={timeSlot.IsAvailable}");
+
                 if (!timeSlot.IsAvailable)
                 {
+                    Console.WriteLine($"TimeSlot {timeSlot.Id} is NOT AVAILABLE (AppointmentId: {timeSlot.AppointmentId})");
                     return Json(new { success = false, errors = new[] { "Selected time slot is no longer available." } });
                 }
 
                 // Validate that the appointment is not in the past
                 if (timeSlot.StartTime < DateTime.Now)
                 {
+                    Console.WriteLine($"TimeSlot {timeSlot.Id} is in the PAST (StartTime: {timeSlot.StartTime}, Now: {DateTime.Now})");
                     return Json(new { success = false, errors = new[] { "Cannot book appointments in the past." } });
                 }
 
                 // Validate that the doctor matches the time slot's doctor
                 if (appointmentDto.DoctorId != timeSlot.DoctorId)
                 {
+                    Console.WriteLine($"Doctor mismatch: Selected={appointmentDto.DoctorId}, TimeSlot={timeSlot.DoctorId}");
                     return Json(new { success = false, errors = new[] { "Selected doctor does not match the time slot's doctor." } });
                 }
+
+                // Validate that the user exists and is a valid patient
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == appointmentDto.UserId);
+                if (user == null)
+                {
+                    Console.WriteLine($"User {appointmentDto.UserId} NOT FOUND");
+                    return Json(new { success = false, errors = new[] { "Selected patient does not exist." } });
+                }
+
+                if (user.Role != 0 && user.Role != 2) // Only students and campus clinic staff can be patients
+                {
+                    Console.WriteLine($"User {appointmentDto.UserId} has invalid role for patient: {user.Role}");
+                    return Json(new { success = false, errors = new[] { "Selected user cannot be a patient." } });
+                }
+
+                // Validate that the doctor exists and is a valid doctor
+                var doctor = await _context.Users.FirstOrDefaultAsync(u => u.Id == appointmentDto.DoctorId);
+                if (doctor == null)
+                {
+                    Console.WriteLine($"Doctor {appointmentDto.DoctorId} NOT FOUND");
+                    return Json(new { success = false, errors = new[] { "Selected doctor does not exist." } });
+                }
+
+                if (doctor.Role != 1) // Only users with role 1 are doctors
+                {
+                    Console.WriteLine($"User {appointmentDto.DoctorId} is not a doctor (Role: {doctor.Role})");
+                    return Json(new { success = false, errors = new[] { "Selected user is not a doctor." } });
+                }
+
+                // Validate that the branch exists
+                var branch = await _context.Branches.FirstOrDefaultAsync(b => b.Id == appointmentDto.BranchId);
+                if (branch == null)
+                {
+                    Console.WriteLine($"Branch {appointmentDto.BranchId} NOT FOUND");
+                    return Json(new { success = false, errors = new[] { "Selected branch does not exist." } });
+                }
+
+                Console.WriteLine("All validations PASSED - checking for conflicts");
 
                 // Check if patient already has a conflicting appointment
                 var hasConflict = await _context.Appointments
@@ -168,8 +301,11 @@ namespace Clinic.Controllers
 
                 if (hasConflict)
                 {
+                    Console.WriteLine($"Patient {appointmentDto.UserId} has CONFLICTING appointment");
                     return Json(new { success = false, errors = new[] { "This patient already has a conflicting appointment." } });
                 }
+
+                Console.WriteLine("No conflicts found - creating appointment");
 
                 // Create appointment
                 var appointment = new Appointment
@@ -177,23 +313,40 @@ namespace Clinic.Controllers
                     UserId = appointmentDto.UserId,
                     DoctorId = appointmentDto.DoctorId,
                     BranchId = appointmentDto.BranchId,
-                    Reason = appointmentDto.Reason,
+                    Reason = appointmentDto.Reason ?? string.Empty,
                     TimeSlotId = appointmentDto.TimeSlotId
                 };
 
+                Console.WriteLine("Adding appointment to context");
                 _context.Appointments.Add(appointment);
+
+                Console.WriteLine("Saving appointment to database");
                 await _context.SaveChangesAsync();
+
+                Console.WriteLine($"Appointment created with ID: {appointment.Id}");
 
                 // Update the time slot to mark it as booked
+                Console.WriteLine($"Updating TimeSlot {timeSlot.Id} to mark as booked");
                 timeSlot.AppointmentId = appointment.Id;
+
+                Console.WriteLine("Saving TimeSlot update");
                 await _context.SaveChangesAsync();
 
+                Console.WriteLine("=== APPOINTMENT CREATED SUCCESSFULLY ===");
                 return Json(new { success = true, message = "Appointment created successfully!", appointmentId = appointment.Id });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error creating appointment: {ex.Message}");
-                return Json(new { success = false, errors = new[] { "An error occurred while creating the appointment." } });
+                Console.WriteLine($"=== EXCEPTION IN CREATE APPOINTMENT ===");
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
+
+                return Json(new { success = false, errors = new[] { $"An error occurred while creating the appointment: {ex.Message}" } });
             }
         }
 
