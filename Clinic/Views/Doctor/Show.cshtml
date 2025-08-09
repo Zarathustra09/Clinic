@@ -158,11 +158,14 @@
 
 <script>
     let timeSlotModal;
+    let dataTable; // Store DataTable instance
     const doctorId = @Model.Id;
 
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Page loaded, Doctor ID:', doctorId);
         timeSlotModal = new bootstrap.Modal(document.getElementById('timeSlotModal'));
+
+        // Load time slots first, then initialize DataTable
         loadTimeSlots();
 
         // Form submission handler
@@ -187,22 +190,38 @@
             })
             .then(data => {
                 console.log('Received data:', data);
-                console.log('Data length:', data.length);
+                console.log('Data length:', Array.isArray(data) ? data.length : 'Not an array');
 
                 const tbody = document.getElementById('timeSlotsTableBody');
                 tbody.innerHTML = '';
 
-                if (!data || data.length === 0) {
+                // Destroy existing DataTable if it exists
+                if (dataTable) {
+                    dataTable.destroy();
+                    dataTable = null;
+                }
+
+                if (!data || !Array.isArray(data) || data.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No time slots available</td></tr>';
                     console.log('No time slots found');
                     return;
                 }
 
+                // Populate table with data
                 data.forEach((timeSlot, index) => {
                     console.log(`Processing time slot ${index}:`, timeSlot);
                     const row = createTimeSlotRow(timeSlot);
                     tbody.appendChild(row);
                 });
+
+                // Initialize DataTable after data is loaded
+                setTimeout(() => {
+                    dataTable = $('#timeSlotsTable').DataTable({
+                        "order": [[ 0, "asc" ], [ 1, "asc" ]], // Sort by date, then start time
+                        "pageLength": 10,
+                        "responsive": true
+                    });
+                }, 100);
 
                 console.log(`Successfully loaded ${data.length} time slots`);
             })
@@ -223,6 +242,8 @@
         console.log('Creating row for time slot:', timeSlot);
 
         const row = document.createElement('tr');
+
+        // Parse the dates from the API response
         const startTime = new Date(timeSlot.startTime);
         const endTime = new Date(timeSlot.endTime);
 
@@ -352,10 +373,6 @@
             console.log('Save response:', response);
             if (response.ok) {
                 timeSlotModal.hide();
-                // Reload time slots after successful save
-                setTimeout(() => {
-                    loadTimeSlots();
-                }, 500);
 
                 Swal.fire({
                     icon: 'success',
@@ -364,6 +381,11 @@
                     timer: 2000,
                     showConfirmButton: false
                 });
+
+                // Reload time slots after successful save
+                setTimeout(() => {
+                    loadTimeSlots();
+                }, 500);
             } else {
                 return response.text().then(text => {
                     throw new Error(text || 'Failed to save time slot');
@@ -396,8 +418,6 @@
                 })
                 .then(response => {
                     if (response.ok) {
-                        loadTimeSlots();
-
                         Swal.fire({
                             icon: 'success',
                             title: 'Deleted!',
@@ -405,6 +425,11 @@
                             timer: 2000,
                             showConfirmButton: false
                         });
+
+                        // Reload time slots after successful delete
+                        setTimeout(() => {
+                            loadTimeSlots();
+                        }, 500);
                     } else {
                         return response.text().then(text => {
                             throw new Error(text || 'Failed to delete time slot');
