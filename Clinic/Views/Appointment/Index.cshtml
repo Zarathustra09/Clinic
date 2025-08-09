@@ -200,30 +200,30 @@
         function loadAvailableTimeSlots() {
             const doctorId = document.getElementById('doctorId').value;
             const timeSlotSelect = document.getElementById('timeSlotId');
-
+        
             // Clear existing options
             timeSlotSelect.innerHTML = '<option value="">Loading...</option>';
-
+        
             if (!doctorId) {
                 timeSlotSelect.innerHTML = '<option value="">-- First select a doctor --</option>';
-                return;
+                return Promise.resolve();
             }
-
-            fetch(`/Appointment/GetAvailableTimeSlots?doctorId=${doctorId}`)
+        
+            return fetch(`/Appointment/GetAvailableTimeSlots?doctorId=${doctorId}`)
                 .then(response => response.json())
                 .then(data => {
                     timeSlotSelect.innerHTML = '<option value="">-- Select Time Slot --</option>';
-
+        
                     if (data.error) {
                         showError('Error loading time slots: ' + data.error);
                         return;
                     }
-
+        
                     if (data.length === 0) {
                         timeSlotSelect.innerHTML = '<option value="">No available time slots for this doctor</option>';
                         return;
                     }
-
+        
                     data.forEach(slot => {
                         const option = document.createElement('option');
                         option.value = slot.id;
@@ -320,33 +320,32 @@
                 .then(data => {
                     if (data.success) {
                         const appointment = data.data;
-
+        
                         document.getElementById('appointmentModalLabel').textContent = 'Edit Appointment';
                         document.getElementById('appointmentId').value = appointment.id;
                         document.getElementById('userId').value = appointment.userId;
                         document.getElementById('doctorId').value = appointment.doctorId;
                         document.getElementById('branchId').value = appointment.branchId;
                         document.getElementById('reason').value = appointment.reason || '';
-
+        
                         // Load time slots for the selected doctor and then set the selected time slot
                         loadAvailableTimeSlots().then(() => {
-                            // Add the current time slot as an option if it's not in the available list
                             const timeSlotSelect = document.getElementById('timeSlotId');
                             let optionExists = Array.from(timeSlotSelect.options).some(option => option.value == appointment.timeSlotId);
-
+        
                             if (!optionExists) {
                                 const option = document.createElement('option');
                                 option.value = appointment.timeSlotId;
                                 option.textContent = appointment.formattedTimeRange + ' (Current)';
                                 timeSlotSelect.appendChild(option);
                             }
-
+        
                             timeSlotSelect.value = appointment.timeSlotId;
                         });
-
+        
                         appointmentModal.show();
                     } else {
-                        showError(data.message);
+                        showError(data.message || 'Failed to load appointment');
                     }
                 })
                 .catch(error => {

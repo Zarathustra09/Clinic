@@ -33,119 +33,156 @@ namespace Clinic.Controllers
        {
            try
            {
-               var query = _context.Appointments
-                   .Include(a => a.User)
-                   .Include(a => a.Doctor)
-                   .Include(a => a.Branch)
-                   .Include(a => a.TimeSlot)
-                   .AsQueryable();
-       
                // Get current user information from claims
+               var currentUserId = 0;
+               var currentUserRole = "";
+               
                if (User.Identity.IsAuthenticated)
                {
                    var currentUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                    var currentUserRoleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
        
-                   if (int.TryParse(currentUserIdClaim, out int currentUserId))
-                   {
-                       // If user role is not "Campus Clinic" (role 2), filter appointments
-                       if (currentUserRoleClaim != "Campus Clinic")
-                       {
-                           if (currentUserRoleClaim == "Student") // Role 0
-                           {
-                               // Students see only their own appointments as patients
-                               query = query.Where(a => a.UserId == currentUserId);
-                           }
-                           else if (currentUserRoleClaim == "Doctor") // Role 1
-                           {
-                               // Doctors see only appointments where they are the assigned doctor
-                               query = query.Where(a => a.DoctorId == currentUserId);
-                           }
-                       }
-                       // Campus Clinic staff (role 2) see all appointments - no filtering needed
-                   }
+                   int.TryParse(currentUserIdClaim, out currentUserId);
+                   currentUserRole = currentUserRoleClaim ?? "";
                }
        
-               // Apply date filtering if provided
-               if (start.HasValue && end.HasValue)
+               // Query 1: Get all appointments without filtering
+               if (string.IsNullOrEmpty(currentUserRole) || currentUserRole == "Campus Clinic" || currentUserRole == "2")
                {
-                   query = query.Where(a => a.TimeSlot.StartTime >= start.Value && a.TimeSlot.EndTime <= end.Value);
+                   var allQuery = from a in _context.Appointments
+                                 join u in _context.Users on a.UserId equals u.Id
+                                 join d in _context.Users on a.DoctorId equals d.Id
+                                 join b in _context.Branches on a.BranchId equals b.Id
+                                 join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
+                                 where (!start.HasValue || !end.HasValue || (ts.StartTime >= start.Value && ts.EndTime <= end.Value))
+                                 select new
+                                 {
+                                     id = a.Id,
+                                     title = (u.FirstName ?? "") + " " + (u.LastName ?? "") + 
+                                            (string.IsNullOrEmpty(a.Reason) ? "" : " - " + a.Reason),
+                                     start = ts.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                     end = ts.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                     backgroundColor = GetAppointmentColor(a.BranchId),
+                                     borderColor = GetAppointmentColor(a.BranchId),
+                                     extendedProps = new
+                                     {
+                                         userId = a.UserId,
+                                         doctorId = a.DoctorId,
+                                         branchId = a.BranchId,
+                                         reason = a.Reason ?? "",
+                                         userFullName = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                                         doctorName = (d.FirstName ?? "") + " " + (d.LastName ?? ""),
+                                         branchName = b.Name ?? "",
+                                         timeSlotId = a.TimeSlotId
+                                     }
+                                 };
+       
+                   var appointments = await allQuery.ToListAsync();
+                   return Json(appointments);
                }
+               // Query 2: Get filtered appointments based on user role
+               else
+               {
+                   var filteredQuery = from a in _context.Appointments
+                                      join u in _context.Users on a.UserId equals u.Id
+                                      join d in _context.Users on a.DoctorId equals d.Id
+                                      join b in _context.Branches on a.BranchId equals b.Id
+                                      join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
+                                      where (currentUserRole == "Student" || currentUserRole == "0") ? a.UserId == currentUserId :
+                                            (currentUserRole == "Doctor" || currentUserRole == "1") ? a.DoctorId == currentUserId : true
+                                      where (!start.HasValue || !end.HasValue || (ts.StartTime >= start.Value && ts.EndTime <= end.Value))
+                                      select new
+                                      {
+                                          id = a.Id,
+                                          title = (u.FirstName ?? "") + " " + (u.LastName ?? "") + 
+                                                 (string.IsNullOrEmpty(a.Reason) ? "" : " - " + a.Reason),
+                                          start = ts.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                          end = ts.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                          backgroundColor = GetAppointmentColor(a.BranchId),
+                                          borderColor = GetAppointmentColor(a.BranchId),
+                                          extendedProps = new
+                                          {
+                                              userId = a.UserId,
+                                              doctorId = a.DoctorId,
+                                              branchId = a.BranchId,
+                                              reason = a.Reason ?? "",
+                                              userFullName = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                                              doctorName = (d.FirstName ?? "") + " " + (d.LastName ?? ""),
+                                              branchName = b.Name ?? "",
+                                              timeSlotId = a.TimeSlotId
+                                          }
+                                      };
        
-               var appointments = await query
-                   .Select(a => new
-                   {
-                       id = a.Id,
-                       title = $"{a.User.FirstName} {a.User.LastName}" + (string.IsNullOrEmpty(a.Reason) ? "" : $" - {a.Reason}"),
-                       start = a.TimeSlot.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                       end = a.TimeSlot.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                       backgroundColor = GetAppointmentColor(a.BranchId),
-                       borderColor = GetAppointmentColor(a.BranchId),
-                       extendedProps = new
-                       {
-                           userId = a.UserId,
-                           doctorId = a.DoctorId,
-                           branchId = a.BranchId,
-                           reason = a.Reason,
-                           userFullName = $"{a.User.FirstName} {a.User.LastName}",
-                           doctorName = $"{a.Doctor.FirstName} {a.Doctor.LastName}",
-                           branchName = a.Branch.Name,
-                           timeSlotId = a.TimeSlotId
-                       }
-                   })
-                   .ToListAsync();
-       
-               return Json(appointments);
+                   var appointments = await filteredQuery.ToListAsync();
+                   return Json(appointments);
+               }
            }
            catch (Exception ex)
            {
                Console.WriteLine($"Error loading appointments: {ex.Message}");
-               return Json(new { error = ex.Message });
+               Console.WriteLine($"Stack trace: {ex.StackTrace}");
+               return Json(new List<object>());
            }
        }
-
-        // API: Get appointment details
-        [HttpGet("GetAppointment/{id}")]
-        public async Task<JsonResult> GetAppointment(int id)
-        {
-            try
-            {
-                var appointment = await _context.Appointments
-                    .Include(a => a.User)
-                    .Include(a => a.Doctor)
-                    .Include(a => a.Branch)
-                    .Include(a => a.TimeSlot)
-                    .FirstOrDefaultAsync(a => a.Id == id);
-
-                if (appointment == null)
-                {
-                    return Json(new { success = false, message = "Appointment not found" });
-                }
-
-                var result = new AppointmentDto
-                {
-                    Id = appointment.Id,
-                    UserId = appointment.UserId,
-                    DoctorId = appointment.DoctorId,
-                    BranchId = appointment.BranchId,
-                    Reason = appointment.Reason,
-                    TimeSlotId = appointment.TimeSlotId,
-                    UserFullName = appointment.UserFullName,
-                    DoctorName = appointment.DoctorName,
-                    BranchName = appointment.BranchName,
-                    FormattedTimeRange = appointment.FormattedTimeRange,
-                    StartTime = appointment.StartTime,
-                    EndTime = appointment.EndTime
-                };
-
-                return Json(new { success = true, data = result });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error getting appointment: {ex.Message}");
-                return Json(new { success = false, message = "Error retrieving appointment" });
-            }
-        }
+       
+       [HttpGet("GetAppointment/{id}")]
+       public async Task<JsonResult> GetAppointment(int id)
+       {
+           try
+           {
+               var appointmentQuery = from a in _context.Appointments
+                                     join u in _context.Users on a.UserId equals u.Id
+                                     join d in _context.Users on a.DoctorId equals d.Id
+                                     join b in _context.Branches on a.BranchId equals b.Id
+                                     join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
+                                     where a.Id == id
+                                     select new
+                                     {
+                                         a.Id,
+                                         a.UserId,
+                                         a.DoctorId,
+                                         a.BranchId,
+                                         a.Reason,
+                                         a.TimeSlotId,
+                                         UserFullName = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                                         DoctorName = (d.FirstName ?? "") + " " + (d.LastName ?? ""),
+                                         BranchName = b.Name ?? "",
+                                         StartTime = ts.StartTime,
+                                         EndTime = ts.EndTime,
+                                         FormattedTimeRange = ts.StartTime.ToString("MMM d, yyyy h:mm tt") + " - " + ts.EndTime.ToString("h:mm tt")
+                                     };
+       
+               var appointment = await appointmentQuery.FirstOrDefaultAsync();
+       
+               if (appointment == null)
+               {
+                   return Json(new { success = false, message = "Appointment not found" });
+               }
+       
+               var result = new AppointmentDto
+               {
+                   Id = appointment.Id,
+                   UserId = appointment.UserId,
+                   DoctorId = appointment.DoctorId,
+                   BranchId = appointment.BranchId,
+                   Reason = appointment.Reason,
+                   TimeSlotId = appointment.TimeSlotId,
+                   UserFullName = appointment.UserFullName,
+                   DoctorName = appointment.DoctorName,
+                   BranchName = appointment.BranchName,
+                   FormattedTimeRange = appointment.FormattedTimeRange,
+                   StartTime = appointment.StartTime,
+                   EndTime = appointment.EndTime
+               };
+       
+               return Json(new { success = true, data = result });
+           }
+           catch (Exception ex)
+           {
+               Console.WriteLine($"Error getting appointment: {ex.Message}");
+               return Json(new { success = false, message = "Error retrieving appointment" });
+           }
+       }
 
         // API: Create appointment
         // API: Create appointment
@@ -377,112 +414,138 @@ namespace Clinic.Controllers
             }
         }
 
-        // API: Update appointment
-        [HttpPost("Update")]
-        public async Task<JsonResult> Update([FromBody] AppointmentDto appointmentDto)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    var errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage));
-                    return Json(new { success = false, errors = errors });
-                }
+       [HttpPost("Update")]
+       public async Task<JsonResult> Update([FromBody] AppointmentDto appointmentDto)
+       {
+           try
+           {
+               // Remove validation errors for display properties that are populated server-side
+               var displayProperties = new[] { "BranchName", "DoctorName", "UserFullName", "FormattedTimeRange", "StartTime", "EndTime", "Title", "Start", "End" };
+               foreach (var prop in displayProperties)
+               {
+                   if (ModelState.ContainsKey(prop))
+                   {
+                       ModelState.Remove(prop);
+                   }
+               }
+       
+               if (!ModelState.IsValid)
+               {
+                   var errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage));
+                   return Json(new { success = false, errors = errors });
+               }
+       
+               // Use explicit query instead of navigation properties
+               var appointmentQuery = from a in _context.Appointments
+                                     join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
+                                     where a.Id == appointmentDto.Id
+                                     select new { a, ts };
+       
+               var appointmentData = await appointmentQuery.FirstOrDefaultAsync();
+       
+               if (appointmentData == null)
+               {
+                   return Json(new { success = false, errors = new[] { "Appointment not found." } });
+               }
+       
+               var appointment = appointmentData.a;
+               var currentTimeSlot = appointmentData.ts;
+       
+               // If changing time slot, validate the new one
+               if (appointment.TimeSlotId != appointmentDto.TimeSlotId)
+               {
+                   var newTimeSlot = await _context.TimeSlots.FirstOrDefaultAsync(ts => ts.Id == appointmentDto.TimeSlotId);
+       
+                   if (newTimeSlot == null)
+                   {
+                       return Json(new { success = false, errors = new[] { "Selected time slot does not exist." } });
+                   }
+       
+                   if (!newTimeSlot.IsAvailable)
+                   {
+                       return Json(new { success = false, errors = new[] { "Selected time slot is no longer available." } });
+                   }
+       
+                   if (newTimeSlot.StartTime < DateTime.Now)
+                   {
+                       return Json(new { success = false, errors = new[] { "Cannot book appointments in the past." } });
+                   }
+       
+                   // Validate that the doctor matches the time slot's doctor
+                   if (appointmentDto.DoctorId != newTimeSlot.DoctorId)
+                   {
+                       return Json(new { success = false, errors = new[] { "Selected doctor does not match the time slot's doctor." } });
+                   }
+       
+                   // Check for conflicts with the new time slot (excluding current appointment)
+                   var hasConflict = await (from a in _context.Appointments
+                                          join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
+                                          where a.UserId == appointmentDto.UserId &&
+                                                a.Id != appointmentDto.Id &&
+                                                ((ts.StartTime >= newTimeSlot.StartTime && ts.StartTime < newTimeSlot.EndTime) ||
+                                                 (ts.EndTime > newTimeSlot.StartTime && ts.EndTime <= newTimeSlot.EndTime) ||
+                                                 (ts.StartTime <= newTimeSlot.StartTime && ts.EndTime >= newTimeSlot.EndTime))
+                                          select a).AnyAsync();
+       
+                   if (hasConflict)
+                   {
+                       return Json(new { success = false, errors = new[] { "This patient already has a conflicting appointment." } });
+                   }
+       
+                   // Free up the old time slot
+                   currentTimeSlot.AppointmentId = null;
+       
+                   // Book the new time slot
+                   newTimeSlot.AppointmentId = appointment.Id;
+                   appointment.TimeSlotId = appointmentDto.TimeSlotId;
+               }
+       
+               // Update appointment details
+               appointment.UserId = appointmentDto.UserId;
+               appointment.DoctorId = appointmentDto.DoctorId;
+               appointment.BranchId = appointmentDto.BranchId;
+               appointment.Reason = appointmentDto.Reason;
+       
+               await _context.SaveChangesAsync();
+       
+               return Json(new { success = true, message = "Appointment updated successfully!" });
+           }
+           catch (Exception ex)
+           {
+               Console.WriteLine($"Error updating appointment: {ex.Message}");
+               Console.WriteLine($"Stack trace: {ex.StackTrace}");
+               return Json(new { success = false, errors = new[] { "An error occurred while updating the appointment." } });
+           }
+       }
 
-                var appointment = await _context.Appointments
-                    .Include(a => a.TimeSlot)
-                    .FirstOrDefaultAsync(a => a.Id == appointmentDto.Id);
-
-                if (appointment == null)
-                {
-                    return Json(new { success = false, errors = new[] { "Appointment not found." } });
-                }
-
-                // If changing time slot, validate the new one
-                if (appointment.TimeSlotId != appointmentDto.TimeSlotId)
-                {
-                    var newTimeSlot = await _context.TimeSlots.FirstOrDefaultAsync(ts => ts.Id == appointmentDto.TimeSlotId);
-
-                    if (newTimeSlot == null)
-                    {
-                        return Json(new { success = false, errors = new[] { "Selected time slot does not exist." } });
-                    }
-
-                    if (!newTimeSlot.IsAvailable)
-                    {
-                        return Json(new { success = false, errors = new[] { "Selected time slot is no longer available." } });
-                    }
-
-                    if (newTimeSlot.StartTime < DateTime.Now)
-                    {
-                        return Json(new { success = false, errors = new[] { "Cannot reschedule to a time slot in the past." } });
-                    }
-
-                    // Validate that the doctor matches the time slot's doctor
-                    if (appointmentDto.DoctorId != newTimeSlot.DoctorId)
-                    {
-                        return Json(new { success = false, errors = new[] { "Selected doctor does not match the time slot's doctor." } });
-                    }
-
-                    // Check for conflicts with the new time slot (excluding current appointment)
-                    var hasConflict = await _context.Appointments
-                        .Include(a => a.TimeSlot)
-                        .AnyAsync(a => a.Id != appointmentDto.Id &&
-                                     a.UserId == appointmentDto.UserId &&
-                                     a.TimeSlot.StartTime < newTimeSlot.EndTime &&
-                                     a.TimeSlot.EndTime > newTimeSlot.StartTime);
-
-                    if (hasConflict)
-                    {
-                        return Json(new { success = false, errors = new[] { "This patient already has a conflicting appointment." } });
-                    }
-
-                    // Free up the old time slot
-                    appointment.TimeSlot.AppointmentId = null;
-
-                    // Book the new time slot
-                    newTimeSlot.AppointmentId = appointment.Id;
-                    appointment.TimeSlotId = appointmentDto.TimeSlotId;
-                }
-
-                // Update appointment details
-                appointment.UserId = appointmentDto.UserId;
-                appointment.DoctorId = appointmentDto.DoctorId;
-                appointment.BranchId = appointmentDto.BranchId;
-                appointment.Reason = appointmentDto.Reason;
-
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, message = "Appointment updated successfully!" });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error updating appointment: {ex.Message}");
-                return Json(new { success = false, errors = new[] { "An error occurred while updating the appointment." } });
-            }
-        }
-
-        // API: Delete appointment
         [HttpPost("Delete/{id}")]
         public async Task<JsonResult> Delete(int id)
         {
             try
             {
-                var appointment = await _context.Appointments
-                    .Include(a => a.TimeSlot)
-                    .FirstOrDefaultAsync(a => a.Id == id);
+                // Use explicit query to avoid navigation property issues
+                var appointmentQuery = from a in _context.Appointments
+                    join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
+                    where a.Id == id
+                    select new { a, ts };
 
-                if (appointment == null)
+                var appointmentData = await appointmentQuery.FirstOrDefaultAsync();
+
+                if (appointmentData == null)
                 {
                     return Json(new { success = false, errors = new[] { "Appointment not found." } });
                 }
 
-                // Free up the time slot
-                if (appointment.TimeSlot != null)
-                {
-                    appointment.TimeSlot.AppointmentId = null;
-                }
+                var appointment = appointmentData.a;
+                var timeSlot = appointmentData.ts;
 
+                // CRITICAL: Free up the time slot FIRST to break the circular reference
+                timeSlot.AppointmentId = null;
+
+                // Save the time slot change first
+                await _context.SaveChangesAsync();
+
+                // Now safely remove the appointment
                 _context.Appointments.Remove(appointment);
                 await _context.SaveChangesAsync();
 
@@ -491,6 +554,7 @@ namespace Clinic.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"Error deleting appointment: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return Json(new { success = false, errors = new[] { "An error occurred while deleting the appointment." } });
             }
         }
