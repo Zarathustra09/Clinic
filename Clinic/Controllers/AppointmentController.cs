@@ -19,14 +19,35 @@ namespace Clinic.Controllers
             _context = context;
         }
 
-        // GET: Appointment
-        [HttpGet("")]
-        [HttpGet("Index")]
-        public async Task<IActionResult> Index()
+    // GET: Appointment
+    [HttpGet("")]
+    [HttpGet("Index")]
+    public async Task<IActionResult> Index()
+    {
+        await PopulateViewBags();
+        
+        // Pass current user info to view
+        if (User.Identity.IsAuthenticated)
         {
-            await PopulateViewBags();
-            return View();
+            var currentUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserRoleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+            
+            if (int.TryParse(currentUserIdClaim, out int currentUserId))
+            {
+                ViewBag.CurrentUserId = currentUserId;
+                ViewBag.CurrentUserRole = currentUserRoleClaim;
+                
+                // Get current user details for display
+                var currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == currentUserId);
+                if (currentUser != null)
+                {
+                    ViewBag.CurrentUserName = $"{currentUser.FirstName} {currentUser.LastName}";
+                }
+            }
         }
+        
+        return View();
+    }
 
       [HttpGet("GetAppointments")]
       public async Task<JsonResult> GetAppointments(DateTime? start = null, DateTime? end = null)

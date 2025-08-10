@@ -46,16 +46,19 @@ namespace Clinic.Controllers
                     return View(model);
                 }
 
+                // Auto-generate School ID
+                string schoolId = await GenerateUniqueSchoolId();
+
                 // Create new user
                 var user = new User
                 {
-                    SchoolID = model.SchoolID,
+                    SchoolID = schoolId, // Auto-generated
                     FirstName = model.FirstName,
                     MiddleName = model.MiddleName,
                     LastName = model.LastName,
                     Email = model.Email,
                     Username = model.Username,
-                    PasswordHash = HashPassword(model.Password), // Hash the password
+                    PasswordHash = HashPassword(model.Password),
                     Role = model.Role,
                     Program = model.Program,
                     CreatedAt = DateTime.UtcNow,
@@ -72,6 +75,50 @@ namespace Clinic.Controllers
 
             // If registration fails, return the registration view with validation errors
             return View(model);
+        }
+
+        private async Task<string> GenerateUniqueSchoolId()
+        {
+            string schoolId;
+            bool isUnique = false;
+            int maxAttempts = 10; // Prevent infinite loop
+            int attempts = 0;
+
+            do
+            {
+                // Generate School ID: CurrentYear + 8 random digits
+                string currentYear = DateTime.Now.Year.ToString();
+                string randomNumbers = GenerateRandomNumbers(8);
+                schoolId = currentYear + randomNumbers;
+
+                // Check if this School ID already exists
+                var existingSchoolId = await _context.Users.FirstOrDefaultAsync(u => u.SchoolID == schoolId);
+                isUnique = existingSchoolId == null;
+                attempts++;
+
+            } while (!isUnique && attempts < maxAttempts);
+
+            if (!isUnique)
+            {
+                // Fallback: use timestamp to ensure uniqueness
+                string timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+                schoolId = DateTime.Now.Year.ToString() + timestamp.Substring(Math.Max(0, timestamp.Length - 8));
+            }
+
+            return schoolId;
+        }
+
+        private string GenerateRandomNumbers(int length)
+        {
+            var random = new Random();
+            var numbers = new char[length];
+            
+            for (int i = 0; i < length; i++)
+            {
+                numbers[i] = (char)('0' + random.Next(0, 10));
+            }
+            
+            return new string(numbers);
         }
 
         private string HashPassword(string password)

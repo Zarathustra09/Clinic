@@ -17,17 +17,16 @@
                     <small class="text-muted">Fill in doctor details</small>
                 </div>
                 <div class="card-body">
+                    <!-- Employee ID Auto-generation Notice -->
+                    <div class="alert alert-info mb-4">
+                        <i class="bx bx-info-circle me-2"></i>
+                        <strong>Employee ID:</strong> Will be automatically generated upon creation (Format: 2025XXXXXXXX)
+                    </div>
+
                     <form asp-controller="Doctor" asp-action="Create" method="post">
                         @Html.AntiForgeryToken()
 
-                        <div class="row mb-3">
-                            <label asp-for="SchoolID" class="col-sm-3 col-form-label">Employee ID</label>
-                            <div class="col-sm-9">
-                                <input asp-for="SchoolID" class="form-control" placeholder="Enter employee ID (optional)" />
-                                <div class="form-text">Doctor's employee identification number</div>
-                                <span asp-validation-for="SchoolID" class="text-danger"></span>
-                            </div>
-                        </div>
+                        <!-- Remove Employee ID input field -->
 
                         <div class="row mb-3">
                             <label asp-for="FirstName" class="col-sm-3 col-form-label">First Name *</label>
@@ -129,17 +128,23 @@
                     </div>
 
                     <div class="mb-3">
+                        <h6 class="text-primary">Auto-Generated</h6>
+                        <ul class="text-muted small">
+                            <li>Employee ID (2025XXXXXXXX)</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
                         <h6 class="text-primary">Optional Fields</h6>
                         <ul class="text-muted small">
-                            <li>Employee ID</li>
                             <li>Middle Name</li>
                             <li>Specialization</li>
                         </ul>
                     </div>
 
-                    <div class="alert alert-info">
-                        <i class="bx bx-lightbulb me-2"></i>
-                        <strong>Tip:</strong> Ensure the email and username are unique in the system.
+                    <div class="alert alert-success">
+                        <i class="bx bx-check-circle me-2"></i>
+                        <strong>Auto-ID:</strong> Employee ID will be generated automatically using the current year + random digits.
                     </div>
                 </div>
             </div>
@@ -176,6 +181,12 @@
         background-color: #e8f5e8;
         border-color: #087830;
         color: #065d20;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        border-color: #087830;
+        color: #155724;
     }
 
     .form-text {

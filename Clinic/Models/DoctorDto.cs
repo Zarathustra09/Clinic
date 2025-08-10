@@ -8,7 +8,7 @@ namespace Clinic.Models
 
         [StringLength(255)]
         [Display(Name = "Employee ID")]
-        public string SchoolID { get; set; } // Using SchoolID field for Employee/Doctor ID
+        public string? SchoolID { get; set; } // Auto-generated, not user input
 
         [Required]
         [StringLength(255)]
@@ -43,12 +43,11 @@ namespace Clinic.Models
 
         [StringLength(255)]
         [Display(Name = "Specialization")]
-        public string Program { get; set; } // Using Program field for Specialization
+        public string Program { get; set; }
 
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 
-        // Full name property for display
         public string FullName => $"{FirstName} {MiddleName} {LastName}".Replace("  ", " ").Trim();
     }
 }

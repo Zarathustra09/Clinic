@@ -101,10 +101,13 @@ namespace Clinic.Controllers
                     return View(doctorDto);
                 }
 
+                // Auto-generate Employee ID
+                string employeeId = await GenerateUniqueEmployeeId();
+
                 // Map DTO to User entity
                 var user = new User
                 {
-                    SchoolID = doctorDto.SchoolID,
+                    SchoolID = employeeId, // Auto-generated Employee ID
                     FirstName = doctorDto.FirstName,
                     MiddleName = doctorDto.MiddleName,
                     LastName = doctorDto.LastName,
@@ -180,8 +183,7 @@ namespace Clinic.Controllers
                         return View(doctorDto);
                     }
 
-                    // Update user properties
-                    user.SchoolID = doctorDto.SchoolID;
+                    // Update user properties (SchoolID remains unchanged)
                     user.FirstName = doctorDto.FirstName;
                     user.MiddleName = doctorDto.MiddleName;
                     user.LastName = doctorDto.LastName;
@@ -243,6 +245,50 @@ namespace Clinic.Controllers
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        private async Task<string> GenerateUniqueEmployeeId()
+        {
+            string employeeId;
+            bool isUnique = false;
+            int maxAttempts = 10;
+            int attempts = 0;
+
+            do
+            {
+                // Generate Employee ID: CurrentYear + 8 random digits
+                string currentYear = DateTime.Now.Year.ToString();
+                string randomNumbers = GenerateRandomNumbers(8);
+                employeeId = currentYear + randomNumbers;
+
+                // Check if this Employee ID already exists
+                var existingEmployeeId = await _context.Users.FirstOrDefaultAsync(u => u.SchoolID == employeeId);
+                isUnique = existingEmployeeId == null;
+                attempts++;
+
+            } while (!isUnique && attempts < maxAttempts);
+
+            if (!isUnique)
+            {
+                // Fallback: use timestamp to ensure uniqueness
+                string timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+                employeeId = DateTime.Now.Year.ToString() + timestamp.Substring(Math.Max(0, timestamp.Length - 8));
+            }
+
+            return employeeId;
+        }
+
+        private string GenerateRandomNumbers(int length)
+        {
+            var random = new Random();
+            var numbers = new char[length];
+
+            for (int i = 0; i < length; i++)
+            {
+                numbers[i] = (char)('0' + random.Next(0, 10));
+            }
+
+            return new string(numbers);
         }
 
         private string HashPassword(string password)

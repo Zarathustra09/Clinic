@@ -25,8 +25,8 @@
                         <div class="row mb-3">
                             <label asp-for="SchoolID" class="col-sm-3 col-form-label">Employee ID</label>
                             <div class="col-sm-9">
-                                <input asp-for="SchoolID" class="form-control" placeholder="Enter employee ID (optional)" />
-                                <span asp-validation-for="SchoolID" class="text-danger"></span>
+                                <input asp-for="SchoolID" class="form-control" readonly />
+                                <div class="form-text">Employee ID cannot be changed</div>
                             </div>
                         </div>
 

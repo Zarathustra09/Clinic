@@ -4,9 +4,10 @@ namespace Clinic.Models
 {
     public class RegisterDto
     {
-        [StringLength(255)]
-        [Display(Name = "School ID")]
-        public string SchoolID { get; set; }
+        // Remove SchoolID from user input - it will be auto-generated
+        // [StringLength(255)]
+        // [Display(Name = "School ID")]
+        // public string SchoolID { get; set; }
 
         [Required]
         [StringLength(255)]

@@ -17,6 +17,7 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
+    <!-- Keep all your existing styles -->
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -130,6 +131,14 @@
                 .login-link a:hover {
                     text-decoration: underline;
                 }
+
+        .auto-generate-info {
+            background-color: #e8f5e8;
+            border: 1px solid #087830;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
     </style>
 </head>
 
@@ -151,6 +160,12 @@
                     <h4 class="text-center mb-4 text-muted">Register Your Account 🏥</h4>
                     <p class="text-center text-muted mb-4">Fill in your details to get started</p>
 
+                    <!-- School ID Auto-generation Notice -->
+                    <div class="auto-generate-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>School ID:</strong> Will be automatically generated upon registration (Format: 2025XXXXXXXX)
+                    </div>
+
                     @if (!ViewData.ModelState.IsValid)
                     {
                         <div class="alert alert-danger" role="alert">
@@ -161,18 +176,7 @@
                     <form asp-action="Index" asp-controller="Registration" method="post">
                         @Html.AntiForgeryToken()
 
-                        <!-- School ID -->
-                        <div class="form-floating mb-3">
-                            <input asp-for="SchoolID"
-                                   type="text"
-                                   class="form-control"
-                                   id="schoolid"
-                                   placeholder="School ID (Optional)" />
-                            <label for="schoolid">
-                                <i class="fas fa-id-card me-2"></i>School ID (Optional)
-                            </label>
-                            <span asp-validation-for="SchoolID" class="text-danger"></span>
-                        </div>
+                        <!-- Remove School ID input field -->
 
                         <!-- Name Fields -->
                         <div class="row">
