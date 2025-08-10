@@ -28,102 +28,128 @@ namespace Clinic.Controllers
             return View();
         }
 
-       [HttpGet("GetAppointments")]
-       public async Task<JsonResult> GetAppointments(DateTime? start = null, DateTime? end = null)
-       {
-           try
-           {
-               // Get current user information from claims
-               var currentUserId = 0;
-               var currentUserRole = "";
-               
-               if (User.Identity.IsAuthenticated)
-               {
-                   var currentUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                   var currentUserRoleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
-       
-                   int.TryParse(currentUserIdClaim, out currentUserId);
-                   currentUserRole = currentUserRoleClaim ?? "";
-               }
-       
-               // Query 1: Get all appointments without filtering
-               if (string.IsNullOrEmpty(currentUserRole) || currentUserRole == "Campus Clinic" || currentUserRole == "2")
-               {
-                   var allQuery = from a in _context.Appointments
-                                 join u in _context.Users on a.UserId equals u.Id
-                                 join d in _context.Users on a.DoctorId equals d.Id
-                                 join b in _context.Branches on a.BranchId equals b.Id
-                                 join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
-                                 where (!start.HasValue || !end.HasValue || (ts.StartTime >= start.Value && ts.EndTime <= end.Value))
-                                 select new
-                                 {
-                                     id = a.Id,
-                                     title = (u.FirstName ?? "") + " " + (u.LastName ?? "") + 
-                                            (string.IsNullOrEmpty(a.Reason) ? "" : " - " + a.Reason),
-                                     start = ts.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                                     end = ts.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                                     backgroundColor = GetAppointmentColor(a.BranchId),
-                                     borderColor = GetAppointmentColor(a.BranchId),
-                                     extendedProps = new
+      [HttpGet("GetAppointments")]
+      public async Task<JsonResult> GetAppointments(DateTime? start = null, DateTime? end = null)
+      {
+          try
+          {
+              var currentUserId = 0;
+              var currentUserRole = "";
+              
+              if (User.Identity.IsAuthenticated)
+              {
+                  var currentUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                  var currentUserRoleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+      
+                  int.TryParse(currentUserIdClaim, out currentUserId);
+                  currentUserRole = currentUserRoleClaim ?? "";
+              }
+      
+              if (string.IsNullOrEmpty(currentUserRole) || currentUserRole == "Campus Clinic" || currentUserRole == "2")
+              {
+                  var allQuery = from a in _context.Appointments
+                                join u in _context.Users on a.UserId equals u.Id
+                                join d in _context.Users on a.DoctorId equals d.Id
+                                join b in _context.Branches on a.BranchId equals b.Id
+                                join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
+                                where (!start.HasValue || !end.HasValue || (ts.StartTime >= start.Value && ts.EndTime <= end.Value))
+                                select new
+                                {
+                                    id = a.Id,
+                                    title = (u.FirstName ?? "") + " " + (u.LastName ?? "") + 
+                                           (string.IsNullOrEmpty(a.Reason) ? "" : " - " + a.Reason),
+                                    start = ts.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                    end = ts.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                    backgroundColor = a.IsApproved ? GetAppointmentColor(a.BranchId) : "#6c757d",
+                                    borderColor = a.IsApproved ? GetAppointmentColor(a.BranchId) : "#6c757d",
+                                    className = a.IsApproved ? "" : "pending-appointment",
+                                    extendedProps = new
+                                    {
+                                        userId = a.UserId,
+                                        doctorId = a.DoctorId,
+                                        branchId = a.BranchId,
+                                        reason = a.Reason ?? "",
+                                        userFullName = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                                        doctorName = (d.FirstName ?? "") + " " + (d.LastName ?? ""),
+                                        branchName = b.Name ?? "",
+                                        timeSlotId = a.TimeSlotId,
+                                        isApproved = a.IsApproved
+                                    }
+                                };
+      
+                  var appointments = await allQuery.ToListAsync();
+                  return Json(appointments);
+              }
+              else
+              {
+                  // Similar update for filtered query...
+                  var filteredQuery = from a in _context.Appointments
+                                     join u in _context.Users on a.UserId equals u.Id
+                                     join d in _context.Users on a.DoctorId equals d.Id
+                                     join b in _context.Branches on a.BranchId equals b.Id
+                                     join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
+                                     where (currentUserRole == "Student" || currentUserRole == "0") ? a.UserId == currentUserId :
+                                           (currentUserRole == "Doctor" || currentUserRole == "1") ? a.DoctorId == currentUserId : true
+                                     where (!start.HasValue || !end.HasValue || (ts.StartTime >= start.Value && ts.EndTime <= end.Value))
+                                     select new
                                      {
-                                         userId = a.UserId,
-                                         doctorId = a.DoctorId,
-                                         branchId = a.BranchId,
-                                         reason = a.Reason ?? "",
-                                         userFullName = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
-                                         doctorName = (d.FirstName ?? "") + " " + (d.LastName ?? ""),
-                                         branchName = b.Name ?? "",
-                                         timeSlotId = a.TimeSlotId
-                                     }
-                                 };
-       
-                   var appointments = await allQuery.ToListAsync();
-                   return Json(appointments);
-               }
-               // Query 2: Get filtered appointments based on user role
-               else
-               {
-                   var filteredQuery = from a in _context.Appointments
-                                      join u in _context.Users on a.UserId equals u.Id
-                                      join d in _context.Users on a.DoctorId equals d.Id
-                                      join b in _context.Branches on a.BranchId equals b.Id
-                                      join ts in _context.TimeSlots on a.TimeSlotId equals ts.Id
-                                      where (currentUserRole == "Student" || currentUserRole == "0") ? a.UserId == currentUserId :
-                                            (currentUserRole == "Doctor" || currentUserRole == "1") ? a.DoctorId == currentUserId : true
-                                      where (!start.HasValue || !end.HasValue || (ts.StartTime >= start.Value && ts.EndTime <= end.Value))
-                                      select new
-                                      {
-                                          id = a.Id,
-                                          title = (u.FirstName ?? "") + " " + (u.LastName ?? "") + 
-                                                 (string.IsNullOrEmpty(a.Reason) ? "" : " - " + a.Reason),
-                                          start = ts.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                                          end = ts.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
-                                          backgroundColor = GetAppointmentColor(a.BranchId),
-                                          borderColor = GetAppointmentColor(a.BranchId),
-                                          extendedProps = new
-                                          {
-                                              userId = a.UserId,
-                                              doctorId = a.DoctorId,
-                                              branchId = a.BranchId,
-                                              reason = a.Reason ?? "",
-                                              userFullName = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
-                                              doctorName = (d.FirstName ?? "") + " " + (d.LastName ?? ""),
-                                              branchName = b.Name ?? "",
-                                              timeSlotId = a.TimeSlotId
-                                          }
-                                      };
-       
-                   var appointments = await filteredQuery.ToListAsync();
-                   return Json(appointments);
-               }
-           }
-           catch (Exception ex)
-           {
-               Console.WriteLine($"Error loading appointments: {ex.Message}");
-               Console.WriteLine($"Stack trace: {ex.StackTrace}");
-               return Json(new List<object>());
-           }
-       }
+                                         id = a.Id,
+                                         title = (u.FirstName ?? "") + " " + (u.LastName ?? "") + 
+                                                (string.IsNullOrEmpty(a.Reason) ? "" : " - " + a.Reason),
+                                         start = ts.StartTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                         end = ts.EndTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                                         backgroundColor = a.IsApproved ? GetAppointmentColor(a.BranchId) : "#6c757d",
+                                         borderColor = a.IsApproved ? GetAppointmentColor(a.BranchId) : "#6c757d",
+                                         className = a.IsApproved ? "" : "pending-appointment",
+                                         extendedProps = new
+                                         {
+                                             userId = a.UserId,
+                                             doctorId = a.DoctorId,
+                                             branchId = a.BranchId,
+                                             reason = a.Reason ?? "",
+                                             userFullName = (u.FirstName ?? "") + " " + (u.LastName ?? ""),
+                                             doctorName = (d.FirstName ?? "") + " " + (d.LastName ?? ""),
+                                             branchName = b.Name ?? "",
+                                             timeSlotId = a.TimeSlotId,
+                                             isApproved = a.IsApproved
+                                         }
+                                     };
+      
+                  var appointments = await filteredQuery.ToListAsync();
+                  return Json(appointments);
+              }
+          }
+          catch (Exception ex)
+          {
+              Console.WriteLine($"Error loading appointments: {ex.Message}");
+              Console.WriteLine($"Stack trace: {ex.StackTrace}");
+              return Json(new List<object>());
+          }
+      }
+      
+      [HttpPost("Approve/{id}")]
+      public async Task<JsonResult> ApproveAppointment(int id)
+      {
+          try
+          {
+              var appointment = await _context.Appointments.FirstOrDefaultAsync(a => a.Id == id);
+              
+              if (appointment == null)
+              {
+                  return Json(new { success = false, message = "Appointment not found." });
+              }
+      
+              appointment.IsApproved = true;
+              await _context.SaveChangesAsync();
+      
+              return Json(new { success = true, message = "Appointment approved successfully!" });
+          }
+          catch (Exception ex)
+          {
+              Console.WriteLine($"Error approving appointment: {ex.Message}");
+              return Json(new { success = false, message = "An error occurred while approving the appointment." });
+          }
+      }
        
        [HttpGet("GetAppointment/{id}")]
        public async Task<JsonResult> GetAppointment(int id)

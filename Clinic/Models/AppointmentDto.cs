@@ -46,5 +46,7 @@ namespace Clinic.Models
         public string End => EndTime != DateTime.MinValue ? EndTime.ToString("yyyy-MM-ddTHH:mm:ss") : "";
 
         public string Color { get; set; } = "#007bff";
+        
+        public bool IsApproved { get; set; } = false;
     }
 }

@@ -146,12 +146,12 @@
                                 @{
                                     var isStudentActive = (currentController == "Student" && currentAction == "Index") ? "active" : "";
                                 }
-                                <li class="menu-item @isStudentActive">
+                                @* <li class="menu-item @isStudentActive">
                                     <a asp-controller="Student" asp-action="Index" class="menu-link">
                                         <i class="menu-icon tf-icons bx bx-user"></i>
                                         <div data-i18n="Account">Manage Students</div>
                                     </a>
-                                </li>
+                                </li> *@
                                 @{
                                     var isDoctorActive = (currentController == "Doctor" && currentAction == "Index") ? "active" : "";
                                 }

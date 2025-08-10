@@ -61,3 +61,9 @@ CREATE TABLE [Clinic].[Appointment] (
 ALTER TABLE [Clinic].[TimeSlot]
 ADD CONSTRAINT [FK_TimeSlot_Appointment] FOREIGN KEY ([AppointmentId]) REFERENCES [Clinic].[Appointment]([Id]);
 GO
+
+-- Add IsApproved column to Appointment table
+ALTER TABLE [Clinic].[Appointment]
+    ADD [IsApproved] BIT NOT NULL DEFAULT 0
+    CONSTRAINT [CK_Appointment_IsApproved] CHECK ([IsApproved] IN (0, 1));
+GO

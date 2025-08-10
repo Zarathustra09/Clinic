@@ -62,5 +62,8 @@ namespace Clinic.Models
         [NotMapped]
         public string FormattedTimeRange => TimeSlot != null ?
             $"{TimeSlot.StartTime:MMM d, yyyy h:mm tt} - {TimeSlot.EndTime:h:mm tt}" : "";
+        
+        [Required]
+        public bool IsApproved { get; set; } = false;
     }
 }
