@@ -455,13 +455,14 @@
             const approvalStatus = event.extendedProps.isApproved ?
                 '<span class="badge bg-success">Approved</span>' :
                 '<span class="badge bg-warning">Pending Approval</span>';
-
+        
             const currentUserRole = '@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value';
-            const canApprove = (currentUserRole === 'Doctor' || currentUserRole === 'Campus Clinic') && !event.extendedProps.isApproved;
-
+            // Only Campus Clinic (role 2) can approve appointments
+            const canApprove = (currentUserRole === 'Campus Clinic' || currentUserRole === '2') && !event.extendedProps.isApproved;
+        
             const approveButton = canApprove ?
                 '<button type="button" class="btn btn-success btn-sm me-2" onclick="approveAppointment(' + event.id + ')"><i class="bx bx-check"></i> Approve</button>' : '';
-
+        
             Swal.fire({
                 title: event.title,
                 html: `

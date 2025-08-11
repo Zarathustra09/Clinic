@@ -1,8 +1,362 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Clinic Dashboard";
+    var peakHoursData = ViewBag.PeakHoursData as dynamic;
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container-fluid mt-4">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h2 class="mb-0">
+                        <i class="bx bx-home me-2"></i>Clinic Management Dashboard
+                    </h2>
+                    <p class="mb-0 mt-2">Welcome to your comprehensive clinic analytics</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bx bx-calendar-check display-4 text-success mb-2"></i>
+                    <h4 id="totalAppointments">@(peakHoursData?.TotalAppointments ?? 0)</h4>
+                    <p class="text-muted mb-0">Total Appointments</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bx bx-buildings display-4 text-info mb-2"></i>
+                    <h4 id="totalBranches">@(peakHoursData?.BranchTotals?.Count ?? 0)</h4>
+                    <p class="text-muted mb-0">Active Branches</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bx bx-time display-4 text-warning mb-2"></i>
+                    <h4 id="peakHour">@(GetMostCommonPeakHour(peakHoursData))h</h4>
+                    <p class="text-muted mb-0">Most Common Peak Hour</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bx bx-trending-up display-4 text-primary mb-2"></i>
+                    <h4 id="avgPerBranch">@(GetAverageAppointmentsPerBranch(peakHoursData))</h4>
+                    <p class="text-muted mb-0">Avg per Branch</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Peak Hours Analytics -->
+    <div class="row mb-4">
+        <!-- Peak Hours Chart -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bx bx-bar-chart me-2"></i>Peak Hours by Clinic Branch
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="peakHoursChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Branch Performance -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bx bx-trophy me-2"></i>Branch Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="branchPerformance">
+                        @if (peakHoursData?.BranchTotals != null)
+                        {
+                            @foreach (var branch in peakHoursData.BranchTotals)
+                            {
+                                var percentage = peakHoursData.TotalAppointments > 0 ? 
+                                    (int)((branch.TotalAppointments / (double)peakHoursData.TotalAppointments) * 100) : 0;
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold">@branch.BranchName</span>
+                                        <small class="text-muted">@branch.TotalAppointments appointments</small>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-primary" style="width: @percentage%"></div>
+                                    </div>
+                                    <small class="text-muted">
+                                        Peak: @branch.PeakHour:00 - @(branch.PeakHour + 1):00
+                                    </small>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No appointment data available</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hourly Distribution Chart -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bx bx-line-chart me-2"></i>Hourly Appointment Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="hourlyDistributionChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@functions {
+    private string GetMostCommonPeakHour(dynamic peakHoursData)
+    {
+        if (peakHoursData?.PeakHours == null) return "N/A";
+        
+        var hourCounts = new Dictionary<int, int>();
+        foreach (var item in peakHoursData.PeakHours)
+        {
+            if (hourCounts.ContainsKey(item.Hour))
+                hourCounts[item.Hour] += item.AppointmentCount;
+            else
+                hourCounts[item.Hour] = item.AppointmentCount;
+        }
+        
+        return hourCounts.Count > 0 ? hourCounts.OrderByDescending(x => x.Value).First().Key.ToString("00") : "N/A";
+    }
+    
+    private string GetAverageAppointmentsPerBranch(dynamic peakHoursData)
+    {
+        if (peakHoursData?.BranchTotals == null || peakHoursData.BranchTotals.Count == 0) return "0";
+        
+        var total = 0;
+        var count = 0;
+        foreach (var branch in peakHoursData.BranchTotals)
+        {
+            total += branch.TotalAppointments;
+            count++;
+        }
+        
+        return count > 0 ? (total / count).ToString("F0") : "0";
+    }
+}
+
+@section Scripts {
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            @if (peakHoursData?.PeakHours != null && peakHoursData?.BranchTotals != null)
+            {
+                <text>
+                // Prepare data for charts
+                const peakHoursData = @Html.Raw(Json.Serialize(peakHoursData.PeakHours));
+                const branchTotals = @Html.Raw(Json.Serialize(peakHoursData.BranchTotals));
+                
+                // Initialize Peak Hours Chart
+                initializePeakHoursChart(peakHoursData, branchTotals);
+                
+                // Initialize Hourly Distribution Chart
+                initializeHourlyDistributionChart(peakHoursData);
+                </text>
+            }
+        });
+
+        function initializePeakHoursChart(peakHoursData, branchTotals) {
+            const ctx = document.getElementById('peakHoursChart').getContext('2d');
+            
+            // Get unique branches and hours
+            const branches = [...new Set(branchTotals.map(b => b.branchName))];
+            const hours = Array.from({length: 12}, (_, i) => i + 8); // 8 AM to 7 PM
+            
+            // Create datasets for each branch
+            const datasets = branches.map((branch, index) => {
+                const branchData = hours.map(hour => {
+                    const dataPoint = peakHoursData.find(p => p.branchName === branch && p.hour === hour);
+                    return dataPoint ? dataPoint.appointmentCount : 0;
+                });
+                
+                const colors = [
+                    'rgba(8, 120, 48, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(153, 102, 255, 0.8)',
+                    'rgba(255, 159, 64, 0.8)'
+                ];
+                
+                return {
+                    label: branch,
+                    data: branchData,
+                    backgroundColor: colors[index % colors.length],
+                    borderColor: colors[index % colors.length].replace('0.8', '1'),
+                    borderWidth: 1,
+                    borderRadius: 4
+                };
+            });
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: hours.map(h => `${h}:00`),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Appointment Volume by Hour and Branch'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Appointments'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Hour of Day'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initializeHourlyDistributionChart(peakHoursData) {
+            const ctx = document.getElementById('hourlyDistributionChart').getContext('2d');
+            
+            // Aggregate data by hour across all branches
+            const hourlyTotals = {};
+            for (let hour = 8; hour <= 19; hour++) {
+                hourlyTotals[hour] = 0;
+            }
+            
+            peakHoursData.forEach(item => {
+                if (hourlyTotals.hasOwnProperty(item.hour)) {
+                    hourlyTotals[item.hour] += item.appointmentCount;
+                }
+            });
+            
+            const hours = Object.keys(hourlyTotals).map(h => `${h}:00`);
+            const counts = Object.values(hourlyTotals);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: hours,
+                    datasets: [{
+                        label: 'Total Appointments',
+                        data: counts,
+                        borderColor: 'rgba(8, 120, 48, 1)',
+                        backgroundColor: 'rgba(8, 120, 48, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(8, 120, 48, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Overall Appointment Distribution Throughout the Day'
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Total Appointments'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Hour of Day'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+}
+
+@section Styles {
+    <style>
+        .card {
+            box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.12);
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+
+        .display-4 {
+            font-size: 2.5rem;
+        }
+
+        .progress {
+            background-color: #f8f9fa;
+        }
+
+        .bg-primary {
+            background-color: #087830 !important;
+        }
+
+        .btn-primary, .progress-bar.bg-primary {
+            background-color: #087830 !important;
+            border-color: #087830 !important;
+        }
+
+        .text-primary {
+            color: #087830 !important;
+        }
+
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+    </style>
+}
