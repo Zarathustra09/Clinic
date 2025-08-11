@@ -187,12 +187,12 @@
                                 <!-- Only Campus Clinic can manage approvals and branches -->
                                 @if (userRole == "Campus Clinic")
                                 {
-                                    <li class="menu-item">
-                                        <a class="menu-link">
-                                            <i class="menu-icon tf-icons bx bx-check-circle"></i>
-                                            <div data-i18n="Approvals">Manage Approvals</div>
-                                        </a>
-                                    </li>
+                                    @* <li class="menu-item"> *@
+                                    @*     <a class="menu-link"> *@
+                                    @*         <i class="menu-icon tf-icons bx bx-check-circle"></i> *@
+                                    @*         <div data-i18n="Approvals">Manage Approvals</div> *@
+                                    @*     </a> *@
+                                    @* </li> *@
                                     var isBranchActive = (currentController == "Branch" && currentAction == "Index") ? "active" : "";
                                     <li class="menu-item @isBranchActive">
                                         <a asp-controller="Branch" asp-action="Index" class="menu-link">
