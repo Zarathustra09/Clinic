@@ -235,22 +235,26 @@
                         <ul class="navbar-nav flex-row align-items-center ms-auto">
                             <!-- User -->
                             <li class="nav-item navbar-dropdown dropdown-user dropdown">
-                                <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
+                               <a class="nav-link dropdown-toggle hide-arrow" href="javascript:void(0);" data-bs-toggle="dropdown">
                                    <div class="avatar avatar-online">
                                        @{
-                                           var profileImage = ViewBag.CurrentUserProfileImage as string;
-                                           var imageSource = !string.IsNullOrEmpty(profileImage) ? profileImage : "~/assets/img/avatars/1.png";
+                                           var profileImageMain = ViewBag.CurrentUserProfileImage as string;
+                                           var imageSourceMain = !string.IsNullOrEmpty(profileImageMain) ? profileImageMain : "../assets/img/avatars/1.png";
                                        }
-                                       <img src="@imageSource" alt class="w-px-40 h-auto rounded-circle" />
+                                       <img src="@imageSourceMain" alt class="w-px-40 h-auto rounded-circle" />
                                    </div>
-                                </a>
+                               </a>
                                 <ul class="dropdown-menu dropdown-menu-end">
                                     <li>
                                         <a class="dropdown-item" href="#">
                                             <div class="d-flex">
                                                 <div class="flex-shrink-0 me-3">
                                                     <div class="avatar avatar-online">
-                                                        <img src="~/assets/img/avatars/1.png" alt class="w-px-40 h-auto rounded-circle" />
+                                                        @{
+                                                            var profileImageDropdown = ViewBag.CurrentUserProfileImage as string;
+                                                            var imageSourceDropdown = !string.IsNullOrEmpty(profileImageDropdown) ? profileImageDropdown : "~/assets/img/avatars/1.png";
+                                                        }
+                                                        <img src="@imageSourceDropdown" alt class="w-px-40 h-auto rounded-circle" />
                                                     </div>
                                                 </div>
                                                 <div class="flex-grow-1">

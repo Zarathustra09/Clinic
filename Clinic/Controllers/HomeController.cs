@@ -1,17 +1,20 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Clinic.Models;
+using Clinic.DataConnection;
 
 namespace Clinic.Controllers;
 
-public class HomeController : Controller
+public class HomeController : BaseController
 {
     private readonly ILogger<HomeController> _logger;
 
-    public HomeController(ILogger<HomeController> logger)
+    public HomeController(ILogger<HomeController> logger, SqlServerDbContext context) : base(context)
     {
         _logger = logger;
     }
+    
+    // Rest of your methods remain the same...
 
     public IActionResult Index()
     {

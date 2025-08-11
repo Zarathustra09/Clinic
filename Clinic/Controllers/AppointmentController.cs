@@ -10,13 +10,10 @@ using System.Security.Claims;
 namespace Clinic.Controllers
 {
     [Route("Appointment")]
-    public class AppointmentController : Controller
+    public class AppointmentController : BaseController
     {
-        private readonly SqlServerDbContext _context;
-
-        public AppointmentController(SqlServerDbContext context)
+        public AppointmentController(SqlServerDbContext context) : base(context)
         {
-            _context = context;
         }
 
     // GET: Appointment

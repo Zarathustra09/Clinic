@@ -9,13 +9,10 @@ using Clinic.DataConnection;
 namespace Clinic.Controllers
 {
     [Route("Branch")]
-    public class BranchController : Controller
+    public class BranchController : BaseController
     {
-        private readonly SqlServerDbContext _context;
-
-        public BranchController(SqlServerDbContext context)
+        public BranchController(SqlServerDbContext context) : base(context)
         {
-            _context = context;
         }
 
         // GET: Branch

@@ -11,13 +11,10 @@ using System.Text;
 namespace Clinic.Controllers
 {
     [Route("Doctor")]
-    public class DoctorController : Controller
+    public class DoctorController : BaseController
     {
-        private readonly SqlServerDbContext _context;
-
-        public DoctorController(SqlServerDbContext context)
+        public DoctorController(SqlServerDbContext context) : base(context)
         {
-            _context = context;
         }
 
         // GET: Doctor
