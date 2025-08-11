@@ -14,7 +14,7 @@
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-bottom-0">
                     <h5 class="mb-0 text-danger">
-                        <i class="bx bx-error-circle me-2"></i>Confirm Deletion
+                        <i class="bx bx-error-circle me-2"></i>Delete Doctor
                     </h5>
                 </div>
                 <div class="card-body">
@@ -22,7 +22,7 @@
                         <i class="bx bx-error-circle me-2 fs-4"></i>
                         <div>
                             <h6 class="alert-heading fw-bold mb-1">Warning!</h6>
-                            <span>This action cannot be undone. Are you sure you want to delete this doctor?</span>
+                            <span>This will permanently delete the doctor and ALL related data including appointments and time slots.</span>
                         </div>
                     </div>
 
@@ -71,19 +71,68 @@
                         <a asp-action="Index" class="btn btn-outline-secondary">
                             <i class="bx bx-arrow-back me-1"></i>Cancel
                         </a>
-                        <form asp-action="Delete" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <input asp-for="Id" type="hidden" />
-                            <button type="submit" class="btn btn-danger">
-                                <i class="bx bx-trash me-1"></i>Delete Doctor
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-danger" onclick="confirmDelete(@Model.Id, '@Model.FullName')">
+                            <i class="bx bx-trash me-1"></i>Delete Doctor
+                        </button>
                     </div>
+
+                    <!-- Hidden form for actual deletion -->
+                    <form id="deleteForm" asp-action="Delete" method="post" style="display: none;">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="Id" type="hidden" />
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    function confirmDelete(doctorId, doctorName) {
+        Swal.fire({
+            title: 'Are you absolutely sure?',
+            html: `
+                <div class="text-start">
+                    <p class="mb-2"><strong>You are about to delete:</strong></p>
+                    <p class="mb-2">👨‍⚕️ Doctor: <strong>${doctorName}</strong></p>
+                    <div class="alert alert-danger mt-3 p-2" style="font-size: 0.9rem;">
+                        <strong>⚠️ This action will permanently delete:</strong>
+                        <ul class="mb-0 mt-2 ps-3">
+                            <li>The doctor's account</li>
+                            <li>All associated time slots</li>
+                            <li>All associated appointments</li>
+                            <li>All related data</li>
+                        </ul>
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete everything!',
+            cancelButtonText: 'Cancel',
+            width: '500px',
+            customClass: {
+                confirmButton: 'btn btn-danger me-2',
+                cancelButton: 'btn btn-secondary'
+            },
+            buttonsStyling: false,
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return new Promise((resolve) => {
+                    // Submit the hidden form
+                    document.getElementById('deleteForm').submit();
+                    resolve();
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        });
+    }
+</script>
 
 <style>
     .card {

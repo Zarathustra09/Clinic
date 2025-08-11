@@ -10,7 +10,7 @@
     </h4>
 
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-12">
             <div class="card mb-4">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Doctor Information</h5>
@@ -39,7 +39,7 @@
                         <div class="row mb-3">
                             <label asp-for="MiddleName" class="col-sm-3 col-form-label">Middle Name</label>
                             <div class="col-sm-9">
-                                <input asp-for="MiddleName" class="form-control" placeholder="Enter middle name (optional)" />
+                                <input asp-for="MiddleName" class="form-control" placeholder="Enter middle name" />
                                 <span asp-validation-for="MiddleName" class="text-danger"></span>
                             </div>
                         </div>
@@ -80,6 +80,18 @@
                         </div>
 
                         <div class="row mb-3">
+                            <div class="row mb-3">
+                                <label asp-for="Program" class="col-sm-3 col-form-label">Specialization</label>
+                                <div class="col-sm-9">
+                                    <select asp-for="Program" class="form-control">
+                                        <option value="">Select specialization</option>
+                                        <option value="General Practice">General Practice</option>
+                                        <option value="Dentistry">Dentistry</option>
+                                    </select>
+                                    <div class="form-text">Choose either General Practice or Dentistry</div>
+                                    <span asp-validation-for="Program" class="text-danger"></span>
+                                </div>
+                            </div>
                             <label asp-for="Program" class="col-sm-3 col-form-label">Specialization</label>
                             <div class="col-sm-9">
                                 <input asp-for="Program" class="form-control" placeholder="Enter medical specialization" />
@@ -103,7 +115,7 @@
             </div>
         </div>
 
-        <div class="col-md-4">
+        @* <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
                     <h6 class="card-title">
@@ -148,7 +160,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> *@
     </div>
 </div>
 

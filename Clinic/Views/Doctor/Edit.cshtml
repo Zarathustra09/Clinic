@@ -73,7 +73,11 @@
                         <div class="row mb-3">
                             <label asp-for="Program" class="col-sm-3 col-form-label">Specialization</label>
                             <div class="col-sm-9">
-                                <input asp-for="Program" class="form-control" placeholder="Enter specialization" />
+                                <select asp-for="Program" class="form-control">
+                                    <option value="">Select specialization</option>
+                                    <option value="General Practice">General Practice</option>
+                                    <option value="Dentistry">Dentistry</option>
+                                </select>
                                 <span asp-validation-for="Program" class="text-danger"></span>
                             </div>
                         </div>

@@ -122,6 +122,7 @@ namespace Clinic.Controllers
 
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Doctor created successfully.";
                 return RedirectToAction(nameof(Index));
             }
             return View(doctorDto);
@@ -194,6 +195,7 @@ namespace Clinic.Controllers
 
                     _context.Update(user);
                     await _context.SaveChangesAsync();
+                    TempData["SuccessMessage"] = "Doctor updated successfully.";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -232,20 +234,46 @@ namespace Clinic.Controllers
             return View(doctorDto);
         }
 
-        // POST: Doctor/Delete/5
-        [HttpPost("Delete/{id:int}")]
-        [ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 1);
-            if (user != null)
-            {
-                _context.Users.Remove(user);
-                await _context.SaveChangesAsync();
-            }
-            return RedirectToAction(nameof(Index));
-        }
+      // POST: Doctor/Delete/5
+      [HttpPost("Delete/{id:int}")]
+      [ActionName("Delete")]
+      [ValidateAntiForgeryToken]
+      public async Task<IActionResult> DeleteConfirmed(int id)
+      {
+          var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == 1);
+          if (user != null)
+          {
+              try
+              {
+                  // Delete all related records first
+                  
+                  // 1. Delete appointments related to this doctor
+                  var appointments = await _context.Appointments.Where(a => a.DoctorId == id).ToListAsync();
+                  if (appointments.Any())
+                  {
+                      _context.Appointments.RemoveRange(appointments);
+                  }
+      
+                  // 2. Delete time slots related to this doctor
+                  var timeSlots = await _context.TimeSlots.Where(ts => ts.DoctorId == id).ToListAsync();
+                  if (timeSlots.Any())
+                  {
+                      _context.TimeSlots.RemoveRange(timeSlots);
+                  }
+      
+                  // 3. Finally delete the doctor
+                  _context.Users.Remove(user);
+                  
+                  await _context.SaveChangesAsync();
+                  TempData["SuccessMessage"] = "Doctor and all related data deleted successfully.";
+              }
+              catch (Exception ex)
+              {
+                  TempData["ErrorMessage"] = "An error occurred while deleting the doctor. Please try again.";
+              }
+          }
+          return RedirectToAction(nameof(Index));
+      }
 
         private async Task<string> GenerateUniqueEmployeeId()
         {
