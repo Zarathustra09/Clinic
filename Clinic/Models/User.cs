@@ -49,5 +49,8 @@ namespace Clinic.Models
 
         // Navigation property for related appointments
         public ICollection<Appointment> Appointments { get; set; }
+        
+        [StringLength(500)]
+        public string? ProfileImage { get; set; }
     }
 }

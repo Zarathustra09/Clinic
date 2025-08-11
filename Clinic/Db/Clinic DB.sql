@@ -67,3 +67,7 @@ ALTER TABLE [Clinic].[Appointment]
     ADD [IsApproved] BIT NOT NULL DEFAULT 0
     CONSTRAINT [CK_Appointment_IsApproved] CHECK ([IsApproved] IN (0, 1));
 GO
+
+ALTER TABLE [Clinic].[User]
+    ADD [ProfileImage] NVARCHAR(500) NULL;
+GO

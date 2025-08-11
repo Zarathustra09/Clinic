@@ -1,0 +1,238 @@
+﻿@model Clinic.Models.ProfileDto
+
+@{
+    ViewData["Title"] = "Profile Settings";
+}
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Account Settings /</span> Account</h4>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <h5 class="card-header">Profile Details</h5>
+                <!-- Account -->
+                <div class="card-body">
+                    <div class="d-flex align-items-start align-items-sm-center gap-4">
+                        <img src="@(string.IsNullOrEmpty(Model.ProfileImage) ? "/assets/img/avatars/1.png" : Model.ProfileImage)"
+                             alt="user-avatar"
+                             class="d-block rounded"
+                             height="100"
+                             width="100"
+                             id="uploadedAvatar" />
+                        <div class="button-wrapper">
+                            <label for="upload" class="btn btn-primary me-2 mb-4" tabindex="0">
+                                <span class="d-none d-sm-block">Upload new photo</span>
+                                <i class="bx bx-upload d-block d-sm-none"></i>
+                                <input type="file"
+                                       id="upload"
+                                       class="account-file-input"
+                                       hidden
+                                       accept="image/png, image/jpeg, image/gif" />
+                            </label>
+                            <button type="button" class="btn btn-outline-secondary account-image-reset mb-4" onclick="resetProfileImage()">
+                                <i class="bx bx-reset d-block d-sm-none"></i>
+                                <span class="d-none d-sm-block">Reset</span>
+                            </button>
+
+                            <p class="text-muted mb-0">Allowed JPG, GIF or PNG. Max size of 800K</p>
+                        </div>
+                    </div>
+                </div>
+                <hr class="my-0" />
+                <div class="card-body">
+                    <form asp-action="Update" method="POST" enctype="multipart/form-data" id="formAccountSettings">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="Id" type="hidden" />
+                        <input asp-for="Role" type="hidden" />
+                        <input asp-for="CreatedAt" type="hidden" />
+                        <input asp-for="UpdatedAt" type="hidden" />
+                        <input type="file" name="profileImageFile" id="profileImageFile" style="display: none;" />
+                        
+                        <div class="row">
+                            <div class="mb-3 col-md-6">
+                                <label asp-for="FirstName" class="form-label">First Name</label>
+                                <input asp-for="FirstName" class="form-control" type="text" autofocus />
+                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label asp-for="LastName" class="form-label">Last Name</label>
+                                <input asp-for="LastName" class="form-control" type="text" />
+                                <span asp-validation-for="LastName" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label asp-for="MiddleName" class="form-label">Middle Name</label>
+                                <input asp-for="MiddleName" class="form-control" type="text" />
+                                <span asp-validation-for="MiddleName" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label asp-for="Email" class="form-label">E-mail</label>
+                                <input asp-for="Email" class="form-control" type="email" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label asp-for="Username" class="form-label">Username</label>
+                                <input asp-for="Username" class="form-control" type="text" />
+                                <span asp-validation-for="Username" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label asp-for="SchoolID" class="form-label">@(Model.Role == 0 ? "School ID" : "Employee ID")</label>
+                                <input asp-for="SchoolID" class="form-control" type="text" readonly />
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label asp-for="Program" class="form-label">@(Model.Role == 0 ? "Program" : Model.Role == 1 ? "Specialization" : "Department")</label>
+                                <input asp-for="Program" class="form-control" type="text" />
+                                <span asp-validation-for="Program" class="text-danger"></span>
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label class="form-label">Role</label>
+                                <input class="form-control" type="text" value="@Model.RoleName" readonly />
+                            </div>
+                            <div class="mb-3 col-md-6">
+                                <label class="form-label">Member Since</label>
+                                <input class="form-control" type="text" value="@Model.CreatedAt.ToString("MMMM dd, yyyy")" readonly />
+                            </div>
+                            
+                            <!-- Password Change Section -->
+                            <div class="col-12">
+                                <hr class="my-4" />
+                                <h6 class="text-muted">Change Password (Optional)</h6>
+                            </div>
+                            <div class="mb-3 col-md-4">
+                                <label for="currentPassword" class="form-label">Current Password</label>
+                                <input type="password" class="form-control" id="currentPassword" name="currentPassword" />
+                            </div>
+                            <div class="mb-3 col-md-4">
+                                <label for="newPassword" class="form-label">New Password</label>
+                                <input type="password" class="form-control" id="newPassword" name="newPassword" />
+                            </div>
+                            <div class="mb-3 col-md-4">
+                                <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" />
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button type="submit" class="btn btn-primary me-2">Save changes</button>
+                            <button type="reset" class="btn btn-outline-secondary">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- /Account -->
+            </div>
+            
+            <!-- Delete Account Section -->
+            <div class="card">
+                <h5 class="card-header">Delete Account</h5>
+                <div class="card-body">
+                    <div class="mb-3 col-12 mb-0">
+                        <div class="alert alert-warning">
+                            <h6 class="alert-heading fw-bold mb-1">Are you sure you want to delete your account?</h6>
+                            <p class="mb-0">Once you delete your account, there is no going back. Please be certain.</p>
+                        </div>
+                    </div>
+                    <form id="formAccountDeactivation" onsubmit="return false">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="accountActivation" id="accountActivation" />
+                            <label class="form-check-label" for="accountActivation">I confirm my account deactivation</label>
+                        </div>
+                        <button type="submit" class="btn btn-danger deactivate-account">Deactivate Account</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for image reset -->
+<form id="resetImageForm" asp-action="ResetProfileImage" method="post" style="display: none;">
+    @Html.AntiForgeryToken()
+</form>
+
+<script>
+    // Preview uploaded image
+    document.getElementById('upload').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Please select a valid image file (JPG, PNG, or GIF).');
+                return;
+            }
+            
+            // Validate file size (800KB)
+            if (file.size > 800 * 1024) {
+                alert('Image file size must be less than 800KB.');
+                return;
+            }
+            
+            // Preview image
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('uploadedAvatar').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            // Set the file to the hidden input in the main form
+            const profileImageFile = document.getElementById('profileImageFile');
+            profileImageFile.files = e.target.files;
+        }
+    });
+
+    function resetProfileImage() {
+        if (confirm('Are you sure you want to remove your profile image?')) {
+            document.getElementById('resetImageForm').submit();
+        }
+    }
+    
+    // Password validation
+    document.getElementById('formAccountSettings').addEventListener('submit', function(e) {
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        if (newPassword && newPassword !== confirmPassword) {
+            e.preventDefault();
+            alert('New password and confirmation password do not match.');
+            return false;
+        }
+        
+        if (newPassword && newPassword.length < 6) {
+            e.preventDefault();
+            alert('Password must be at least 6 characters long.');
+            return false;
+        }
+    });
+</script>
+
+<style>
+    .account-file-input {
+        position: absolute;
+        z-index: -1;
+        opacity: 0;
+    }
+    
+    .rounded {
+        border-radius: 0.375rem !important;
+        object-fit: cover;
+    }
+    
+    .button-wrapper {
+        flex: 1;
+    }
+</style>
