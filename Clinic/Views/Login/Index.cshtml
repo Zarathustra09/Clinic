@@ -208,9 +208,13 @@
                         </button>
                     </form>
 
-                    <div class="divider">
-                        <span>New to Clinic Management?</span>
-                    </div>
+                        <div class="divider" style="position: relative; margin: 1.5rem 0;">
+                            <hr style="border-top: 1px solid #e9ecef; margin: 0;" />
+                            <span style="background: white; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 0 1rem; color: #6c757d; font-size: 0.875rem; z-index: 1;">
+                                New to Clinic Management?
+                            </span>
+                        </div>
+                    
 
                     <a asp-controller="Registration" asp-action="Index" class="btn btn-outline-clinic">
                         <i class="fas fa-user-plus me-2"></i>Create Account
