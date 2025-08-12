@@ -217,107 +217,114 @@ namespace Clinic.Controllers
             }
         }
 
-        // POST: api/timeslots - Creates TimeSlot WITHOUT Appointment
-        [HttpPost]
-        public async Task<ActionResult<TimeSlotDto>> CreateTimeSlot([FromBody] TimeSlotDto timeSlotDto)
-        {
-            try
-            {
-                // Remove validation for display-only properties that shouldn't be required for creation
-                ModelState.Remove(nameof(TimeSlotDto.DoctorName));
-                ModelState.Remove(nameof(TimeSlotDto.AppointmentReason));
-                ModelState.Remove(nameof(TimeSlotDto.Date));
-                ModelState.Remove(nameof(TimeSlotDto.StartTimeOnly));
-                ModelState.Remove(nameof(TimeSlotDto.EndTimeOnly));
-
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                Console.WriteLine($"Creating time slot for doctor {timeSlotDto.DoctorId}");
-
-                // Validate doctor exists and is a doctor (Role = 1)
-                var doctor = await _context.Users.FirstOrDefaultAsync(u => u.Id == timeSlotDto.DoctorId && u.Role == 1);
-                if (doctor == null)
-                {
-                    return BadRequest("Invalid doctor specified.");
-                }
-
-                // Validate start time is before end time
-                if (timeSlotDto.StartTime >= timeSlotDto.EndTime)
-                {
-                    return BadRequest("Start time must be before end time.");
-                }
-
-                // Validate that the time slot is in the future
-                if (timeSlotDto.StartTime <= DateTime.Now)
-                {
-                    return BadRequest("Time slot must be scheduled for a future date and time.");
-                }
-
-                // Validate time slot doesn't overlap with existing ones for the same doctor using raw SQL
-                var connectionString = _context.Database.GetConnectionString();
-                bool hasOverlap = false;
-
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    await connection.OpenAsync();
-                    var overlapSql = @"
-                        SELECT COUNT(*) 
-                        FROM [Clinic].[TimeSlot] 
-                        WHERE DoctorId = @DoctorId 
-                        AND (@StartTime < EndTime AND @EndTime > StartTime)";
-
-                    using (var command = new SqlCommand(overlapSql, connection))
-                    {
-                        command.Parameters.AddWithValue("@DoctorId", timeSlotDto.DoctorId);
-                        command.Parameters.AddWithValue("@StartTime", timeSlotDto.StartTime);
-                        command.Parameters.AddWithValue("@EndTime", timeSlotDto.EndTime);
-
-                        var count = (int)await command.ExecuteScalarAsync();
-                        hasOverlap = count > 0;
-                    }
-                }
-
-                if (hasOverlap)
-                {
-                    return BadRequest("Time slot overlaps with an existing slot.");
-                }
-
-                // Create TimeSlot WITHOUT creating an Appointment
-                var timeSlot = new TimeSlot
-                {
-                    DoctorId = timeSlotDto.DoctorId,
-                    StartTime = timeSlotDto.StartTime,
-                    EndTime = timeSlotDto.EndTime
-                };
-
-                _context.TimeSlots.Add(timeSlot);
-                await _context.SaveChangesAsync();
-
-                Console.WriteLine($"Created time slot with ID: {timeSlot.Id}");
-
-                // Return the created time slot with populated doctor information
-                var resultDto = new TimeSlotDto
-                {
-                    Id = timeSlot.Id,
-                    DoctorId = timeSlot.DoctorId,
-                    StartTime = timeSlot.StartTime,
-                    EndTime = timeSlot.EndTime,
-                    AppointmentId = null,
-                    DoctorName = $"{doctor.FirstName} {doctor.LastName}",
-                    AppointmentReason = null
-                };
-
-                return CreatedAtAction(nameof(GetTimeSlot), new { id = timeSlot.Id }, resultDto);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error creating time slot: {ex.Message}");
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
+       [HttpPost]
+       public async Task<ActionResult<TimeSlotDto>> CreateTimeSlot([FromBody] TimeSlotDto timeSlotDto)
+       {
+           try
+           {
+               // Remove validation for display-only properties
+               ModelState.Remove(nameof(TimeSlotDto.DoctorName));
+               ModelState.Remove(nameof(TimeSlotDto.AppointmentReason));
+               ModelState.Remove(nameof(TimeSlotDto.Date));
+               ModelState.Remove(nameof(TimeSlotDto.StartTimeOnly));
+               ModelState.Remove(nameof(TimeSlotDto.EndTimeOnly));
+       
+               if (!ModelState.IsValid)
+               {
+                   return BadRequest(ModelState);
+               }
+       
+               Console.WriteLine($"Creating time slot for doctor {timeSlotDto.DoctorId}");
+       
+               // Use a database transaction to prevent duplicates
+               using var transaction = await _context.Database.BeginTransactionAsync();
+               
+               try
+               {
+                   // Check for exact duplicate (same doctor, same start time, same end time)
+                   var exactDuplicate = await _context.TimeSlots
+                       .FirstOrDefaultAsync(ts => ts.DoctorId == timeSlotDto.DoctorId 
+                                               && ts.StartTime == timeSlotDto.StartTime 
+                                               && ts.EndTime == timeSlotDto.EndTime);
+       
+                   if (exactDuplicate != null)
+                   {
+                       return BadRequest("A time slot with the exact same time already exists for this doctor.");
+                   }
+       
+                   // Validate doctor exists and is a doctor (Role = 1)
+                   var doctor = await _context.Users.FirstOrDefaultAsync(u => u.Id == timeSlotDto.DoctorId && u.Role == 1);
+                   if (doctor == null)
+                   {
+                       return BadRequest("Invalid doctor specified.");
+                   }
+       
+                   // Validate start time is before end time
+                   if (timeSlotDto.StartTime >= timeSlotDto.EndTime)
+                   {
+                       return BadRequest("Start time must be before end time.");
+                   }
+       
+                   // Validate that the time slot is in the future
+                   if (timeSlotDto.StartTime <= DateTime.Now)
+                   {
+                       return BadRequest("Time slot must be scheduled for a future date and time.");
+                   }
+       
+                   // Check for overlapping slots using Entity Framework
+                   var hasOverlap = await _context.TimeSlots
+                       .AnyAsync(ts => ts.DoctorId == timeSlotDto.DoctorId 
+                                   && ts.StartTime < timeSlotDto.EndTime 
+                                   && ts.EndTime > timeSlotDto.StartTime);
+       
+                   if (hasOverlap)
+                   {
+                       return BadRequest("Time slot overlaps with an existing slot.");
+                   }
+       
+                   // Create TimeSlot
+                   var timeSlot = new TimeSlot
+                   {
+                       DoctorId = timeSlotDto.DoctorId,
+                       StartTime = timeSlotDto.StartTime,
+                       EndTime = timeSlotDto.EndTime,
+                       AppointmentId = null
+                   };
+       
+                   _context.TimeSlots.Add(timeSlot);
+                   await _context.SaveChangesAsync();
+                   
+                   // Commit the transaction
+                   await transaction.CommitAsync();
+       
+                   Console.WriteLine($"Created time slot with ID: {timeSlot.Id}");
+       
+                   // Return the created time slot with populated doctor information
+                   var resultDto = new TimeSlotDto
+                   {
+                       Id = timeSlot.Id,
+                       DoctorId = timeSlot.DoctorId,
+                       StartTime = timeSlot.StartTime,
+                       EndTime = timeSlot.EndTime,
+                       AppointmentId = null,
+                       DoctorName = $"{doctor.FirstName} {doctor.LastName}",
+                       AppointmentReason = null
+                   };
+       
+                   return CreatedAtAction(nameof(GetTimeSlot), new { id = timeSlot.Id }, resultDto);
+               }
+               catch (Exception)
+               {
+                   await transaction.RollbackAsync();
+                   throw;
+               }
+           }
+           catch (Exception ex)
+           {
+               Console.WriteLine($"Error creating time slot: {ex.Message}");
+               return StatusCode(500, $"Internal server error: {ex.Message}");
+           }
+       }
 
         // PUT: api/timeslots/{id} - FIXED VERSION with Raw SQL
         [HttpPut("{id}")]

@@ -178,11 +178,11 @@
     function loadTimeSlots() {
         const apiUrl = `/api/timeslots/doctor/${doctorId}`;
         console.log('Loading time slots from:', apiUrl);
-
+    
         fetch(apiUrl)
             .then(response => {
                 console.log('Response status:', response.status);
-
+    
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -191,45 +191,55 @@
             .then(data => {
                 console.log('Received data:', data);
                 console.log('Data length:', Array.isArray(data) ? data.length : 'Not an array');
-
+    
                 const tbody = document.getElementById('timeSlotsTableBody');
-                tbody.innerHTML = '';
-
-                // Destroy existing DataTable if it exists
+                
+                // Destroy existing DataTable FIRST
                 if (dataTable) {
                     dataTable.destroy();
                     dataTable = null;
                 }
-
+    
+                // Clear the tbody AFTER destroying DataTable
+                tbody.innerHTML = '';
+    
                 if (!data || !Array.isArray(data) || data.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No time slots available</td></tr>';
                     console.log('No time slots found');
                     return;
                 }
-
+    
                 // Populate table with data
                 data.forEach((timeSlot, index) => {
                     console.log(`Processing time slot ${index}:`, timeSlot);
                     const row = createTimeSlotRow(timeSlot);
                     tbody.appendChild(row);
                 });
-
+    
                 // Initialize DataTable after data is loaded
                 setTimeout(() => {
                     dataTable = $('#timeSlotsTable').DataTable({
                         "order": [[ 0, "asc" ], [ 1, "asc" ]], // Sort by date, then start time
                         "pageLength": 10,
-                        "responsive": true
+                        "responsive": true,
+                        "destroy": true // Allow reinitialization
                     });
                 }, 100);
-
+    
                 console.log(`Successfully loaded ${data.length} time slots`);
             })
             .catch(error => {
                 console.error('Error loading time slots:', error);
                 const tbody = document.getElementById('timeSlotsTableBody');
+                
+                // Destroy DataTable if it exists before showing error
+                if (dataTable) {
+                    dataTable.destroy();
+                    dataTable = null;
+                }
+                
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error: ${error.message}</td></tr>`;
-
+    
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
