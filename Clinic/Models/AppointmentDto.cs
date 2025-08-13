@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Clinic.Models
 {
+
     public class AppointmentDto
     {
         public int Id { get; set; }
@@ -46,7 +47,7 @@ namespace Clinic.Models
         public string End => EndTime != DateTime.MinValue ? EndTime.ToString("yyyy-MM-ddTHH:mm:ss") : "";
 
         public string Color { get; set; } = "#007bff";
-        
-        public bool IsApproved { get; set; } = false;
+
+        public AppointmentStatus Status { get; set; } = AppointmentStatus.Pending;
     }
 }

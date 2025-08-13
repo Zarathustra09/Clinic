@@ -4,6 +4,15 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Clinic.Models
 {
+    public enum AppointmentStatus
+    {
+        Pending = 0,
+        Rejected = 1,
+        Approved = 2,
+        Finished = 3,
+        Cancelled = 4
+    }
+
     [Table("Appointment", Schema = "Clinic")]
     public class Appointment
     {
@@ -33,14 +42,16 @@ namespace Clinic.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Required reference to TimeSlot for timing information
         [Required]
         public int TimeSlotId { get; set; }
 
         [ForeignKey(nameof(TimeSlotId))]
         public TimeSlot TimeSlot { get; set; }
 
-        // Computed properties for display - now derived from TimeSlot and direct Doctor reference
+        [Required]
+        public AppointmentStatus Status { get; set; } = AppointmentStatus.Pending;
+
+        // Computed properties for display
         [NotMapped]
         public string UserFullName => User != null ? $"{User.FirstName} {User.LastName}" : "";
 
@@ -62,8 +73,5 @@ namespace Clinic.Models
         [NotMapped]
         public string FormattedTimeRange => TimeSlot != null ?
             $"{TimeSlot.StartTime:MMM d, yyyy h:mm tt} - {TimeSlot.EndTime:h:mm tt}" : "";
-        
-        [Required]
-        public bool IsApproved { get; set; } = false;
     }
 }

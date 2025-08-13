@@ -85,7 +85,13 @@
                                         {
                                             @foreach (var doctor in ViewBag.Doctors as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>())
                                             {
-                                                <option value="@doctor.Id">@doctor.FullName</option>
+                                                <option value="@doctor.Id">
+                                                    @doctor.FullName
+                                                    @if (!string.IsNullOrWhiteSpace(doctor.Specialization))
+                                                    {
+                                                        <span> - @doctor.Specialization</span>
+                                                    }
+                                                </option>
                                             }
                                         }
                                         else
@@ -202,10 +208,19 @@
     <script>
         let calendar;
         let appointmentModal;
-        
+
         // Store current user info from server
         const currentUserRole = '@currentUserRole';
         const currentUserId = @currentUserId;
+
+        // Appointment Status Enum (matching backend)
+        const AppointmentStatus = {
+            Pending: 0,
+            Rejected: 1,
+            Approved: 2,
+            Finished: 3,
+            Cancelled: 4
+        };
 
         document.addEventListener('DOMContentLoaded', function() {
             initializeCalendar();
@@ -222,7 +237,7 @@
 
                 saveAppointment();
             });
-            
+
             // Auto-load time slots if user is a doctor
             if (currentUserRole === '1' || currentUserRole === 'Doctor') {
                 loadAvailableTimeSlots();
@@ -260,7 +275,7 @@
 
         function loadAvailableTimeSlots() {
             let doctorId;
-            
+
             // Get doctor ID based on role
             if (currentUserRole === '1' || currentUserRole === 'Doctor') {
                 doctorId = currentUserId;
@@ -268,7 +283,7 @@
                 const doctorSelect = document.getElementById('doctorId');
                 doctorId = doctorSelect?.value;
             }
-            
+
             const timeSlotSelect = document.getElementById('timeSlotId');
 
             // Clear existing options
@@ -290,8 +305,8 @@
                     }
 
                     if (data.length === 0) {
-                        const message = (currentUserRole === '1' || currentUserRole === 'Doctor') 
-                            ? 'No available time slots for you' 
+                        const message = (currentUserRole === '1' || currentUserRole === 'Doctor')
+                            ? 'No available time slots for you'
                             : 'No available time slots for this doctor';
                         timeSlotSelect.innerHTML = `<option value="">${message}</option>`;
                         return;
@@ -324,7 +339,7 @@
             if (currentUserRole === '0' || currentUserRole === 'Student') {
                 document.getElementById('userId').value = currentUserId;
             }
-            
+
             if (currentUserRole === '1' || currentUserRole === 'Doctor') {
                 document.getElementById('doctorId').value = currentUserId;
                 loadAvailableTimeSlots();
@@ -342,19 +357,19 @@
 
             // Get form values with role-based logic
             let userId, doctorId;
-            
+
             if (currentUserRole === '0' || currentUserRole === 'Student') {
                 userId = currentUserId; // Student is always the patient
             } else {
                 userId = document.getElementById('userId').value;
             }
-            
+
             if (currentUserRole === '1' || currentUserRole === 'Doctor') {
                 doctorId = currentUserId; // Doctor is always the doctor
             } else {
                 doctorId = document.getElementById('doctorId').value;
             }
-            
+
             const timeSlotId = document.getElementById('timeSlotId').value;
             const branchId = document.getElementById('branchId').value;
             const reason = document.getElementById('reason').value;
@@ -417,7 +432,6 @@
             });
         }
 
-        // Rest of your existing functions remain the same...
         function initializeCalendar() {
             var calendarEl = document.getElementById('calendar');
 
@@ -451,23 +465,56 @@
             calendar.render();
         }
 
+        function getStatusText(status) {
+            switch (status) {
+                case AppointmentStatus.Pending:
+                    return '<span class="badge bg-warning">Pending</span>';
+                case AppointmentStatus.Rejected:
+                    return '<span class="badge bg-danger">Rejected</span>';
+                case AppointmentStatus.Approved:
+                    return '<span class="badge bg-success">Approved</span>';
+                case AppointmentStatus.Finished:
+                    return '<span class="badge bg-info">Finished</span>';
+                case AppointmentStatus.Cancelled:
+                    return '<span class="badge bg-secondary">Cancelled</span>';
+                default:
+                    return '<span class="badge bg-light text-dark">Unknown</span>';
+            }
+        }
+
         function showAppointmentDetails(event) {
-            const approvalStatus = event.extendedProps.isApproved ?
-                '<span class="badge bg-success">Approved</span>' :
-                '<span class="badge bg-warning">Pending Approval</span>';
-        
+            const status = parseInt(event.extendedProps.status);
+            const statusText = getStatusText(status);
+
             const currentUserRole = '@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value';
-            // Only Campus Clinic (role 2) can approve appointments
-            const canApprove = (currentUserRole === 'Campus Clinic' || currentUserRole === '2') && !event.extendedProps.isApproved;
-        
+
+            // Only Campus Clinic (role 2) can approve/reject pending appointments
+            const canApprove = (currentUserRole === 'Campus Clinic' || currentUserRole === '2') && status === AppointmentStatus.Pending;
+            const canReject = (currentUserRole === 'Campus Clinic' || currentUserRole === '2') && status === AppointmentStatus.Pending;
+
+            // Only Doctors (role 1) can complete approved appointments
+            const canComplete = (currentUserRole === 'Campus Clinic' || currentUserRole === '2') && status === AppointmentStatus.Approved;
+
+            // Anyone can cancel non-finished and non-cancelled appointments
+            const canCancel = status !== AppointmentStatus.Finished && status !== AppointmentStatus.Cancelled;
+
             const approveButton = canApprove ?
                 '<button type="button" class="btn btn-success btn-sm me-2" onclick="approveAppointment(' + event.id + ')"><i class="bx bx-check"></i> Approve</button>' : '';
-        
+
+            const rejectButton = canReject ?
+                '<button type="button" class="btn btn-danger btn-sm me-2" onclick="rejectAppointment(' + event.id + ')"><i class="bx bx-x"></i> Reject</button>' : '';
+
+            const completeButton = canComplete ?
+                '<button type="button" class="btn btn-info btn-sm me-2" onclick="completeAppointment(' + event.id + ')"><i class="bx bx-check-double"></i> Finish</button>' : '';
+
+            const cancelButton = canCancel ?
+                '<button type="button" class="btn btn-warning btn-sm me-2" onclick="cancelAppointment(' + event.id + ')"><i class="bx bx-x-circle"></i> Cancel</button>' : '';
+
             Swal.fire({
                 title: event.title,
                 html: `
                     <div class="text-start">
-                        <p><strong>Status:</strong> ${approvalStatus}</p>
+                        <p><strong>Status:</strong> ${statusText}</p>
                         <p><strong>Time:</strong> ${event.start.toLocaleString()} - ${event.end.toLocaleString()}</p>
                         <p><strong>Patient:</strong> ${event.extendedProps.userFullName}</p>
                         <p><strong>Doctor:</strong> ${event.extendedProps.doctorName}</p>
@@ -476,6 +523,9 @@
                     </div>
                     <div class="mt-3">
                         ${approveButton}
+                        ${rejectButton}
+                        ${completeButton}
+                        ${cancelButton}
                     </div>
                 `,
                 showCancelButton: true,
@@ -519,6 +569,72 @@
             });
         }
 
+        function rejectAppointment(appointmentId) {
+            fetch(`/Appointment/Reject/${appointmentId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess(data.message);
+                    calendar.refetchEvents();
+                } else {
+                    showError(data.message || 'Failed to reject appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('An error occurred while rejecting the appointment');
+            });
+        }
+
+        function completeAppointment(appointmentId) {
+            fetch(`/Appointment/Complete/${appointmentId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess(data.message);
+                    calendar.refetchEvents();
+                } else {
+                    showError(data.message || 'Failed to finish appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('An error occurred while finishing the appointment');
+            });
+        }
+
+        function cancelAppointment(appointmentId) {
+            fetch(`/Appointment/Cancel/${appointmentId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess(data.message);
+                    calendar.refetchEvents();
+                } else {
+                    showError(data.message || 'Failed to cancel appointment');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('An error occurred while cancelling the appointment');
+            });
+        }
+
         function editAppointment(appointmentId) {
             fetch(`/Appointment/GetAppointment/${appointmentId}`)
                 .then(response => response.json())
@@ -528,16 +644,16 @@
 
                         document.getElementById('appointmentModalLabel').textContent = 'Edit Appointment';
                         document.getElementById('appointmentId').value = appointment.id;
-                        
+
                         // Set values based on role
                         if (currentUserRole !== '0' && currentUserRole !== 'Student') {
                             document.getElementById('userId').value = appointment.userId;
                         }
-                        
+
                         if (currentUserRole !== '1' && currentUserRole !== 'Doctor') {
                             document.getElementById('doctorId').value = appointment.doctorId;
                         }
-                        
+
                         document.getElementById('branchId').value = appointment.branchId;
                         document.getElementById('reason').value = appointment.reason || '';
 
@@ -663,6 +779,10 @@
 
         .alert {
             border-radius: 0.375rem;
+        }
+
+        .pending-appointment {
+            opacity: 0.7;
         }
     </style>
 }

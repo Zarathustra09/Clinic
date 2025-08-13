@@ -29,7 +29,7 @@ public class HomeController : BaseController
         var appointments = await _context.Appointments
             .Include(a => a.TimeSlot)
             .Include(a => a.Branch)
-            .Where(a => a.IsApproved && a.TimeSlot != null)
+            .Where(a => (a.Status == AppointmentStatus.Approved || a.Status == AppointmentStatus.Finished) && a.TimeSlot != null)
             .ToListAsync();
 
         // Group by branch and hour
